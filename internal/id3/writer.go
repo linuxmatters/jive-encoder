@@ -15,7 +15,6 @@ type TagInfo struct {
 	Date          string // Optional: Format: "YYYY-MM"
 	Comment       string // Optional: defaults to empty if not provided
 	CoverArtData  []byte // Optional: pre-processed cover art bytes
-	Description   string // Optional: cover art description (defaults to "{Artist} Logo" if not provided)
 }
 
 // WriteTags writes ID3v2.4 tags to an MP3 file
@@ -63,7 +62,7 @@ func WriteTags(mp3Path string, info TagInfo) error {
 
 	// APIC: Cover art
 	if len(info.CoverArtData) > 0 {
-		addCoverArtData(tag, info.CoverArtData, info.Artist, info.Description)
+		addCoverArtData(tag, info.CoverArtData, info.Artist)
 	}
 
 	if err := tag.Save(); err != nil {
@@ -74,10 +73,10 @@ func WriteTags(mp3Path string, info TagInfo) error {
 }
 
 // addCoverArtData adds pre-processed cover artwork as an APIC frame
-// If description is empty, defaults to "{artist} Logo"
-func addCoverArtData(tag *id3v2.Tag, artwork []byte, artist, description string) {
-	desc := description
-	if desc == "" && artist != "" {
+// The description defaults to "{artist} Logo"
+func addCoverArtData(tag *id3v2.Tag, artwork []byte, artist string) {
+	var desc string
+	if artist != "" {
 		desc = fmt.Sprintf("%s Logo", artist)
 	}
 
