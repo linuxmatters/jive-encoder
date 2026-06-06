@@ -94,7 +94,7 @@ func progressView(m *EncodeModel) string {
 // completeView renders the completion message
 func completeView(m *EncodeModel) string {
 	elapsed := formatDurationHuman(m.lastUpdateTime.Sub(m.startTime))
-	speed := m.calculateSpeed()
+	speed := m.anim.finalSpeed
 
 	msg := fmt.Sprintf("%s Encoded in %s (%.1fx realtime)",
 		successStyle.Render("✓"),
