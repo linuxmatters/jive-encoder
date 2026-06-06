@@ -108,7 +108,7 @@ install: build
 # Record gif
 vhs: build
     @vhs ./jivedrop.tape
-    rm LMP80.mp3 2>/dev/null || true
+    rm LMP67.mp3 2>/dev/null || true
 
 # Test encoder
 test-encoder: build
