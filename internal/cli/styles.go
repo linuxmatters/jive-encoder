@@ -95,8 +95,3 @@ func PrintLabelValue(label, value string) {
 func PrintSuccessLabel(label, value string) {
 	fmt.Printf("%s %s %s\n", SuccessStyle.Render("\u2713"), KeyStyle.Render(label), value)
 }
-
-// PrintCover prints cover art info with muted label style
-func PrintCover(info string) {
-	fmt.Printf("  %s %s\n", KeyStyle.Render("Cover:"), info)
-}
