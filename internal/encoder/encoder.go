@@ -366,19 +366,8 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 				return fmt.Errorf("failed to feed filter graph: %w", err)
 			}
 
-			for {
-				if _, err := ffmpeg.AVBuffersinkGetFrame(e.bufferSinkCtx, e.filteredFrame); err != nil {
-					if errors.Is(err, ffmpeg.EAgain) || errors.Is(err, ffmpeg.AVErrorEOF) {
-						break
-					}
-					return fmt.Errorf("failed to get filtered frame: %w", err)
-				}
-
-				if err := e.encodeFrame(e.filteredFrame, outStream); err != nil {
-					return err
-				}
-
-				ffmpeg.AVFrameUnref(e.filteredFrame)
+			if err := e.drainFilterGraph(outStream); err != nil {
+				return err
 			}
 
 			ffmpeg.AVFrameUnref(e.decFrame)
@@ -398,23 +387,15 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 			return fmt.Errorf("flush decoder receive failed: %w", err)
 		}
 
+		// Note: the decoder-flush feed keeps a ref (AVBuffersrcFlagKeepRef) while the
+		// filter-graph flush below passes 0. That divergence is intentional-until-reviewed
+		// and tracked separately; do not unify these flag values here.
 		if _, err := ffmpeg.AVBuffersrcAddFrameFlags(e.bufferSrcCtx, e.decFrame, ffmpeg.AVBuffersrcFlagKeepRef); err != nil {
 			return fmt.Errorf("failed to feed filter graph: %w", err)
 		}
 
-		for {
-			if _, err := ffmpeg.AVBuffersinkGetFrame(e.bufferSinkCtx, e.filteredFrame); err != nil {
-				if errors.Is(err, ffmpeg.EAgain) || errors.Is(err, ffmpeg.AVErrorEOF) {
-					break
-				}
-				return fmt.Errorf("failed to get filtered frame: %w", err)
-			}
-
-			if err := e.encodeFrame(e.filteredFrame, outStream); err != nil {
-				return err
-			}
-
-			ffmpeg.AVFrameUnref(e.filteredFrame)
+		if err := e.drainFilterGraph(outStream); err != nil {
+			return err
 		}
 
 		ffmpeg.AVFrameUnref(e.decFrame)
@@ -425,6 +406,26 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 		return fmt.Errorf("failed to flush filter graph: %w", err)
 	}
 
+	if err := e.drainFilterGraph(outStream); err != nil {
+		return err
+	}
+
+	// Flush encoder
+	if err := e.flushEncoder(outStream); err != nil {
+		return err
+	}
+
+	// Write trailer
+	if _, err := ffmpeg.AVWriteTrailer(e.ofmtCtx); err != nil {
+		return fmt.Errorf("write trailer failed: %w", err)
+	}
+
+	return nil
+}
+
+// drainFilterGraph reads filtered frames from the buffersink until EAGAIN or
+// EOF, encoding each one. Callers feed the buffersrc before invoking this.
+func (e *Encoder) drainFilterGraph(outStream *ffmpeg.AVStream) error {
 	for {
 		if _, err := ffmpeg.AVBuffersinkGetFrame(e.bufferSinkCtx, e.filteredFrame); err != nil {
 			if errors.Is(err, ffmpeg.EAgain) || errors.Is(err, ffmpeg.AVErrorEOF) {
@@ -438,16 +439,6 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 		}
 
 		ffmpeg.AVFrameUnref(e.filteredFrame)
-	}
-
-	// Flush encoder
-	if err := e.flushEncoder(outStream); err != nil {
-		return err
-	}
-
-	// Write trailer
-	if _, err := ffmpeg.AVWriteTrailer(e.ofmtCtx); err != nil {
-		return fmt.Errorf("write trailer failed: %w", err)
 	}
 
 	return nil
