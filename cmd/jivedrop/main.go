@@ -91,11 +91,13 @@ func sanitiseForFilename(s string) string {
 	}, s)
 }
 
-// generateFilename creates the output filename based on mode and metadata
-func generateFilename(mode WorkflowMode, num, artist string) string {
+// generateFilename creates the output filename based on mode and metadata.
+// cliArtist is the raw --artist flag value, used in Hugo mode to decide whether
+// the default LMP prefix is overridden; artist is the resolved metadata artist.
+func generateFilename(mode WorkflowMode, num, artist, cliArtist string) string {
 	if mode == HugoMode {
 		// Hugo mode: LMP{num}.mp3 unless artist is overridden
-		if CLI.Artist != "" && CLI.Artist != HugoDefaultArtist {
+		if cliArtist != "" && cliArtist != HugoDefaultArtist {
 			sanitisedArtist := sanitiseForFilename(artist)
 			return fmt.Sprintf("%s-%s.mp3", sanitisedArtist, num)
 		}
@@ -111,38 +113,40 @@ func generateFilename(mode WorkflowMode, num, artist string) string {
 	return fmt.Sprintf("episode-%s.mp3", num)
 }
 
-// resolveOutputPath determines final output file path
-func resolveOutputPath(mode WorkflowMode, num, artist string) (string, error) {
-	if CLI.OutputPath == "" {
+// resolveOutputPath determines final output file path. outputPath is the raw
+// --output-path flag value; cliArtist is the raw --artist flag value passed
+// through to generateFilename.
+func resolveOutputPath(mode WorkflowMode, num, artist, cliArtist, outputPath string) (string, error) {
+	if outputPath == "" {
 		// No path given: write a generated filename in the current directory.
-		filename := generateFilename(mode, num, artist)
+		filename := generateFilename(mode, num, artist, cliArtist)
 		return filename, nil
 	}
 
-	stat, err := os.Stat(CLI.OutputPath)
+	stat, err := os.Stat(outputPath)
 	if err == nil {
 		if stat.IsDir() {
-			filename := generateFilename(mode, num, artist)
-			return filepath.Join(CLI.OutputPath, filename), nil
+			filename := generateFilename(mode, num, artist, cliArtist)
+			return filepath.Join(outputPath, filename), nil
 		}
-		return CLI.OutputPath, nil
+		return outputPath, nil
 	}
 
 	// A trailing slash on a non-existent path means the user meant a directory,
 	// which must already exist; treat the absence as an error.
-	if strings.HasSuffix(CLI.OutputPath, "/") {
-		return "", fmt.Errorf("output directory does not exist: %s", CLI.OutputPath)
+	if strings.HasSuffix(outputPath, "/") {
+		return "", fmt.Errorf("output directory does not exist: %s", outputPath)
 	}
 
 	// Treat the path as a file; its parent directory must exist.
-	dir := filepath.Dir(CLI.OutputPath)
+	dir := filepath.Dir(outputPath)
 	if dir != "." && dir != "" {
 		if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
 			return "", fmt.Errorf("output directory does not exist: %s", dir)
 		}
 	}
 
-	return CLI.OutputPath, nil
+	return outputPath, nil
 }
 
 // promptAndUpdateFrontmatter prompts the user and updates the frontmatter with podcast stats
@@ -162,27 +166,40 @@ func promptAndUpdateFrontmatter(markdownPath, promptMsg, duration string, bytes 
 	}
 }
 
+// EncodeRequest carries everything the encode pipeline needs, sourced from the
+// CLI flags by the caller so encode itself reads no package-level state.
+type EncodeRequest struct {
+	Mode         WorkflowMode
+	TagInfo      id3.TagInfo
+	CoverArtPath string
+	OutputPath   string
+	AudioFile    string
+	EpisodeMD    string
+	Stereo       bool
+}
+
 // encode runs the full encoding pipeline: display info, create encoder, run
 // Bubbletea UI, process cover art concurrently, write ID3 tags, and extract
 // file statistics. Returns nil stats (with nil error) when stats extraction
 // fails but the MP3 was written successfully.
-func encode(mode WorkflowMode, tagInfo id3.TagInfo, coverArtPath, outputPath string) (*encoder.FileStats, error) {
-	cli.PrintSuccessLabel("Ready to encode:", fmt.Sprintf("%s -> MP3", CLI.AudioFile))
+func encode(req EncodeRequest) (*encoder.FileStats, error) {
+	tagInfo := req.TagInfo
+	cli.PrintSuccessLabel("Ready to encode:", fmt.Sprintf("%s -> MP3", req.AudioFile))
 	cli.PrintLabelValue("• Episode:", fmt.Sprintf("%s - %s", tagInfo.EpisodeNumber, tagInfo.Title))
-	if mode == HugoMode {
-		cli.PrintLabelValue("• Episode markdown:", CLI.EpisodeMD)
+	if req.Mode == HugoMode {
+		cli.PrintLabelValue("• Episode markdown:", req.EpisodeMD)
 	}
-	cli.PrintLabelValue("• Output:", outputPath)
-	if CLI.Stereo {
+	cli.PrintLabelValue("• Output:", req.OutputPath)
+	if req.Stereo {
 		cli.PrintLabelValue("• Encoding mode:", "Stereo 192kbps")
 	} else {
 		cli.PrintLabelValue("• Encoding mode:", "Mono 112kbps")
 	}
 
 	enc, err := encoder.New(encoder.Config{
-		InputPath:  CLI.AudioFile,
-		OutputPath: outputPath,
-		Stereo:     CLI.Stereo,
+		InputPath:  req.AudioFile,
+		OutputPath: req.OutputPath,
+		Stereo:     req.Stereo,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encoder: %w", err)
@@ -199,7 +216,7 @@ func encode(mode WorkflowMode, tagInfo id3.TagInfo, coverArtPath, outputPath str
 
 	outputBitrate := 112
 	outputMode := "mono"
-	if CLI.Stereo {
+	if req.Stereo {
 		outputBitrate = 192
 		outputMode = "stereo"
 	}
@@ -207,12 +224,12 @@ func encode(mode WorkflowMode, tagInfo id3.TagInfo, coverArtPath, outputPath str
 	// Process cover art concurrently so scaling overlaps the encode.
 	coverArtChan := make(chan coverArtResult, 1)
 	go func() {
-		if coverArtPath == "" {
+		if req.CoverArtPath == "" {
 			coverArtChan <- coverArtResult{data: nil, err: nil}
 			return
 		}
 
-		artwork, artErr := id3.ScaleCoverArt(coverArtPath, nil)
+		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath, nil)
 		coverArtChan <- coverArtResult{data: artwork, err: artErr}
 	}()
 
@@ -228,30 +245,30 @@ func encode(mode WorkflowMode, tagInfo id3.TagInfo, coverArtPath, outputPath str
 	if encModel, ok := finalModel.(*ui.EncodeModel); ok {
 		if encModel.Error() != nil {
 			// Discard the truncated MP3 so a failed run leaves no partial file.
-			os.Remove(outputPath)
+			os.Remove(req.OutputPath)
 			return nil, fmt.Errorf("encoding failed: %w", encModel.Error())
 		}
 	}
 
 	coverResult := <-coverArtChan
 	if coverResult.err != nil {
-		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing cover art: %s", outputPath))
+		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing cover art: %s", req.OutputPath))
 		return nil, fmt.Errorf("failed to process cover art: %w", coverResult.err)
 	}
 
 	fmt.Println("\nEmbedding ID3v2 tags...")
 	tagInfo.CoverArtData = coverResult.data
 
-	if err := id3.WriteTags(outputPath, tagInfo); err != nil {
-		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing metadata: %s", outputPath))
+	if err := id3.WriteTags(req.OutputPath, tagInfo); err != nil {
+		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing metadata: %s", req.OutputPath))
 		return nil, fmt.Errorf("failed to write ID3 tags: %w", err)
 	}
 
-	cli.PrintSuccessLabel("Complete:", outputPath)
+	cli.PrintSuccessLabel("Complete:", req.OutputPath)
 
 	// Extract file statistics using duration from encoder (avoids re-opening file)
 	durationSecs := enc.GetDurationSecs()
-	stats, err := encoder.GetFileStats(outputPath, durationSecs)
+	stats, err := encoder.GetFileStats(req.OutputPath, durationSecs)
 	if err != nil {
 		cli.PrintWarning(fmt.Sprintf("Could not extract file statistics: %v", err))
 		return nil, nil
@@ -297,13 +314,21 @@ func run() int {
 		return 1
 	}
 
-	outputPath, err := resolveOutputPath(mode, tagInfo.EpisodeNumber, tagInfo.Artist)
+	outputPath, err := resolveOutputPath(mode, tagInfo.EpisodeNumber, tagInfo.Artist, CLI.Artist, CLI.OutputPath)
 	if err != nil {
 		cli.PrintError(fmt.Sprintf("Failed to resolve output path: %v", err))
 		return 1
 	}
 
-	stats, err := encode(mode, tagInfo, coverArtPath, outputPath)
+	stats, err := encode(EncodeRequest{
+		Mode:         mode,
+		TagInfo:      tagInfo,
+		CoverArtPath: coverArtPath,
+		OutputPath:   outputPath,
+		AudioFile:    CLI.AudioFile,
+		EpisodeMD:    CLI.EpisodeMD,
+		Stereo:       CLI.Stereo,
+	})
 	if err != nil {
 		cli.PrintError(err.Error())
 		return 1

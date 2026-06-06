@@ -301,15 +301,10 @@ func TestGenerateFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Set global CLI.Artist to simulate the actual usage
-			originalArtist := CLI.Artist
-			CLI.Artist = tt.cliArtist
-			defer func() { CLI.Artist = originalArtist }()
-
-			result := generateFilename(tt.mode, tt.num, tt.artist)
+			result := generateFilename(tt.mode, tt.num, tt.artist, tt.cliArtist)
 			if result != tt.expected {
-				t.Errorf("generateFilename(%v, %q, %q) = %q; want %q",
-					tt.mode, tt.num, tt.artist, result, tt.expected)
+				t.Errorf("generateFilename(%v, %q, %q, %q) = %q; want %q",
+					tt.mode, tt.num, tt.artist, tt.cliArtist, result, tt.expected)
 			}
 		})
 	}
@@ -406,14 +401,6 @@ func TestResolveOutputPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore global state
-			originalOutputPath := CLI.OutputPath
-			originalArtist := CLI.Artist
-			defer func() {
-				CLI.OutputPath = originalOutputPath
-				CLI.Artist = originalArtist
-			}()
-
 			// Handle dynamic temp directory paths
 			testOutputPath := tt.outputPath
 			if tt.name == "existing directory" || tt.name == "file path in existing temp directory" {
@@ -424,10 +411,7 @@ func TestResolveOutputPath(t *testing.T) {
 				}
 			}
 
-			CLI.OutputPath = testOutputPath
-			CLI.Artist = tt.cliArtist
-
-			result, err := resolveOutputPath(tt.mode, tt.num, tt.artist)
+			result, err := resolveOutputPath(tt.mode, tt.num, tt.artist, tt.cliArtist, testOutputPath)
 
 			if tt.wantErr {
 				if err == nil {
@@ -459,13 +443,8 @@ func TestResolveOutputPath_FileOverwrite(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Save and restore global state
-	originalOutputPath := CLI.OutputPath
-	defer func() { CLI.OutputPath = originalOutputPath }()
-
 	// Resolve the same path again
-	CLI.OutputPath = existingFile
-	result, err := resolveOutputPath(HugoMode, "1", "")
+	result, err := resolveOutputPath(HugoMode, "1", "", "", existingFile)
 	if err != nil {
 		t.Errorf("resolveOutputPath() with existing file: got unexpected error: %v", err)
 	}
@@ -479,18 +458,7 @@ func TestResolveOutputPath_FileOverwrite(t *testing.T) {
 func TestResolveOutputPath_GeneratedFilenameInTempDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Save and restore global state
-	originalOutputPath := CLI.OutputPath
-	originalArtist := CLI.Artist
-	defer func() {
-		CLI.OutputPath = originalOutputPath
-		CLI.Artist = originalArtist
-	}()
-
-	CLI.OutputPath = tmpDir
-	CLI.Artist = "Test Show"
-
-	result, err := resolveOutputPath(StandaloneMode, "42", "Test Show")
+	result, err := resolveOutputPath(StandaloneMode, "42", "Test Show", "Test Show", tmpDir)
 	if err != nil {
 		t.Errorf("resolveOutputPath() unexpected error: %v", err)
 	}
@@ -753,12 +721,10 @@ func BenchmarkSanitiseForFilename(b *testing.B) {
 
 // BenchmarkGenerateFilename benchmarks the filename generation
 func BenchmarkGenerateFilename(b *testing.B) {
-	CLI.Artist = "Linux Matters"
-
 	b.ResetTimer()
 	for b.Loop() {
-		generateFilename(HugoMode, "67", "")
-		generateFilename(StandaloneMode, "42", "My Podcast")
-		generateFilename(StandaloneMode, "1", "")
+		generateFilename(HugoMode, "67", "", "Linux Matters")
+		generateFilename(StandaloneMode, "42", "My Podcast", "My Podcast")
+		generateFilename(StandaloneMode, "1", "", "")
 	}
 }
