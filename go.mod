@@ -1,6 +1,6 @@
 module github.com/linuxmatters/jivedrop
 
-go 1.26.1
+go 1.26.3
 
 require (
 	github.com/alecthomas/kong v1.15.0
