@@ -76,6 +76,7 @@ third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.1 static bindings
 ## Code Conventions
 
 - **British English spelling** in user-facing text and comments
+- **Charm v2 libraries** publish under the `charm.land` vanity path, not `github.com/charmbracelet/.../v2`: import `charm.land/bubbletea/v2`, `charm.land/bubbles/v2`, `charm.land/lipgloss/v2`
 - **Lipgloss styles** in `internal/cli/styles.go` use the colour palette defined in `internal/cli/colours.go`
 - **Kong** for CLI parsing with custom help printer
 - **Bubbletea** for interactive progress UI during encoding
