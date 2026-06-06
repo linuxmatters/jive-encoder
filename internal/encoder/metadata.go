@@ -90,8 +90,8 @@ func ResolveCoverArtPath(markdownPath, episodeImage string) (string, error) {
 	markdownDir := filepath.Dir(markdownPath)
 
 	// A "./" prefix means the image sits beside the markdown file.
-	if strings.HasPrefix(episodeImage, "./") {
-		coverPath := filepath.Join(markdownDir, episodeImage[2:])
+	if after, ok := strings.CutPrefix(episodeImage, "./"); ok {
+		coverPath := filepath.Join(markdownDir, after)
 		coverPath, err := filepath.Abs(coverPath)
 		if err != nil {
 			return "", fmt.Errorf("failed to resolve cover art path: %w", err)
