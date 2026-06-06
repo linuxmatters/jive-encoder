@@ -229,7 +229,7 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 			return
 		}
 
-		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath, nil)
+		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath)
 		coverArtChan <- coverArtResult{data: artwork, err: artErr}
 	}()
 

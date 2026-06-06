@@ -18,7 +18,7 @@ import (
 // To avoid needless recompression it returns the original PNG bytes untouched
 // when no scaling is required, and only re-encodes scaled images or non-PNG
 // inputs.
-func ScaleCoverArt(inputPath string, logFn func(string)) ([]byte, error) {
+func ScaleCoverArt(inputPath string) ([]byte, error) {
 	file, err := os.Open(inputPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open cover art: %w", err)
@@ -56,10 +56,6 @@ func ScaleCoverArt(inputPath string, logFn func(string)) ([]byte, error) {
 
 	// Fast path: an in-spec PNG passes through with its bytes intact.
 	if !needsScaling && format == "png" {
-		if logFn != nil {
-			logFn(fmt.Sprintf("%dx%d %s (no scaling needed)", width, height, format))
-		}
-
 		data, err := os.ReadFile(inputPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read cover art: %w", err)
@@ -87,14 +83,6 @@ func ScaleCoverArt(inputPath string, logFn func(string)) ([]byte, error) {
 	err = png.Encode(&buf, finalImg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode scaled image: %w", err)
-	}
-
-	if logFn != nil {
-		if needsScaling {
-			logFn(fmt.Sprintf("%dx%d %s scaled to %dx%d PNG", width, height, format, targetSize, targetSize))
-		} else {
-			logFn(fmt.Sprintf("%dx%d %s re-encoded to PNG", width, height, format))
-		}
 	}
 
 	return buf.Bytes(), nil

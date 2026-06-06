@@ -74,7 +74,7 @@ func TestScaleCoverArt_ValidSquareImage(t *testing.T) {
 			}
 
 			// Scale the image
-			scaledData, err := ScaleCoverArt(testImagePath, func(string) {})
+			scaledData, err := ScaleCoverArt(testImagePath)
 			if err != nil {
 				t.Fatalf("ScaleCoverArt failed: %v", err)
 			}
@@ -156,7 +156,7 @@ func TestScaleCoverArt_NonSquareImage(t *testing.T) {
 			}
 
 			// Attempt to scale
-			_, err := ScaleCoverArt(testImagePath, func(string) {})
+			_, err := ScaleCoverArt(testImagePath)
 
 			if !tt.wantErr && err != nil {
 				t.Errorf("Unexpected error: %v", err)
@@ -174,7 +174,7 @@ func TestScaleCoverArt_NonSquareImage(t *testing.T) {
 
 // TestScaleCoverArt_NonExistentFile tests error handling for missing files
 func TestScaleCoverArt_NonExistentFile(t *testing.T) {
-	_, err := ScaleCoverArt("/nonexistent/path/to/image.png", func(string) {})
+	_, err := ScaleCoverArt("/nonexistent/path/to/image.png")
 
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
@@ -195,7 +195,7 @@ func TestScaleCoverArt_CorruptFile(t *testing.T) {
 		t.Fatalf("Failed to create corrupt file: %v", err)
 	}
 
-	_, err := ScaleCoverArt(corruptPath, func(string) {})
+	_, err := ScaleCoverArt(corruptPath)
 
 	if err == nil {
 		t.Error("Expected error for corrupt file, got nil")
@@ -215,7 +215,7 @@ func TestScaleCoverArt_TextFile(t *testing.T) {
 		t.Fatalf("Failed to create text file: %v", err)
 	}
 
-	_, err := ScaleCoverArt(textPath, func(string) {})
+	_, err := ScaleCoverArt(textPath)
 
 	if err == nil {
 		t.Error("Expected error for text file, got nil")
@@ -236,7 +236,7 @@ func TestScaleCoverArt_RealImageFile(t *testing.T) {
 	}
 
 	// Scale the real image
-	scaledData, err := ScaleCoverArt(testImagePath, func(string) {})
+	scaledData, err := ScaleCoverArt(testImagePath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestScaleCoverArt_OutputIsPNG(t *testing.T) {
 		t.Fatalf("Failed to create test PNG: %v", err)
 	}
 
-	scaledData, err := ScaleCoverArt(testImagePath, func(string) {})
+	scaledData, err := ScaleCoverArt(testImagePath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestScaleCoverArt_SkipPNGReencoding(t *testing.T) {
 	originalSize := originalInfo.Size()
 
 	// Process with ScaleCoverArt
-	scaledData, err := ScaleCoverArt(testImagePath, func(string) {})
+	scaledData, err := ScaleCoverArt(testImagePath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestScaleCoverArt_EdgeCases(t *testing.T) {
 				t.Fatalf("Failed to create test PNG: %v", err)
 			}
 
-			scaledData, err := ScaleCoverArt(testImagePath, func(string) {})
+			scaledData, err := ScaleCoverArt(testImagePath)
 			if err != nil {
 				t.Fatalf("ScaleCoverArt failed: %v", err)
 			}
@@ -422,7 +422,7 @@ func TestScaleCoverArt_OutputDataSize(t *testing.T) {
 		t.Fatalf("Failed to create test PNG: %v", err)
 	}
 
-	scaledData, err := ScaleCoverArt(testImagePath, func(string) {})
+	scaledData, err := ScaleCoverArt(testImagePath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
@@ -461,7 +461,7 @@ func TestScaleCoverArt_MultipleScalings(t *testing.T) {
 			t.Fatalf("Failed to create test PNG: %v", err)
 		}
 
-		scaledData, err := ScaleCoverArt(testImagePath, func(string) {})
+		scaledData, err := ScaleCoverArt(testImagePath)
 		if err != nil {
 			t.Fatalf("ScaleCoverArt failed for size %d: %v", tt.inputSize, err)
 		}

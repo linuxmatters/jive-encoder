@@ -149,7 +149,7 @@ func TestWriteTags_WithCoverArt(t *testing.T) {
 	}
 
 	// Pre-process cover art
-	coverArtData, err := ScaleCoverArt(coverArtPath, nil)
+	coverArtData, err := ScaleCoverArt(coverArtPath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestWriteTags_WithCoverArt_InvalidPath(t *testing.T) {
 	}
 
 	// Attempt to pre-process non-existent cover art
-	_, err = ScaleCoverArt("/nonexistent/path/to/cover.png", nil)
+	_, err = ScaleCoverArt("/nonexistent/path/to/cover.png")
 	if err == nil {
 		t.Error("Expected error for non-existent cover art, got nil")
 	}
@@ -260,7 +260,7 @@ func TestWriteTags_WithCoverArt_AllMetadata(t *testing.T) {
 	}
 
 	// Pre-process cover art
-	coverArtData, err := ScaleCoverArt(coverArtPath, nil)
+	coverArtData, err := ScaleCoverArt(coverArtPath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
@@ -376,7 +376,7 @@ func TestWriteTags_CoverArt_NoOtherMetadata(t *testing.T) {
 	}
 
 	// Pre-process cover art
-	coverArtData, err := ScaleCoverArt(coverArtPath, nil)
+	coverArtData, err := ScaleCoverArt(coverArtPath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
