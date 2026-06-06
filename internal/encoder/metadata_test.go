@@ -172,6 +172,39 @@ Episode content.
 	}
 }
 
+func TestParseEpisodeNumber(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{name: "plain number", input: "67", wantErr: false},
+		{name: "zero", input: "0", wantErr: false},
+		{name: "empty", input: "", wantErr: true},
+		{name: "non-numeric", input: "foo", wantErr: true},
+		{name: "trailing letter", input: "67a", wantErr: true},
+		{name: "negative", input: "-1", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseEpisodeNumber(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected error for input %q, got nil", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("Unexpected error for input %q: %v", tt.input, err)
+			}
+			if got != tt.input {
+				t.Errorf("Expected %q unchanged, got %q", tt.input, got)
+			}
+		})
+	}
+}
+
 // TestUpdateFrontmatter_InsertBothFields tests inserting missing podcast_duration and podcast_bytes
 func TestUpdateFrontmatter_InsertBothFields(t *testing.T) {
 	content := `---

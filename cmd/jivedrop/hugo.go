@@ -79,6 +79,9 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 	if CLI.Num != "" {
 		episodeNum = CLI.Num
 	}
+	if _, err := encoder.ParseEpisodeNumber(episodeNum); err != nil {
+		return id3.TagInfo{}, "", fmt.Errorf("invalid episode number: %w", err)
+	}
 	if CLI.Date != "" {
 		date = CLI.Date
 	}

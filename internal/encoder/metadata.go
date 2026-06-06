@@ -5,11 +5,29 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
 )
+
+// ParseEpisodeNumber validates a raw episode number and returns it unchanged
+// when valid. An episode number must be non-empty and a non-negative integer,
+// so it produces a well-formed ID3 TRCK frame and filename. Non-numeric input
+// such as "foo" or "67a" is rejected at the boundary.
+func ParseEpisodeNumber(s string) (string, error) {
+	if s == "" {
+		return "", fmt.Errorf("episode number is required")
+	}
+
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return "", fmt.Errorf("invalid episode number %q: must be a non-negative integer", s)
+	}
+
+	return s, nil
+}
 
 // EpisodeMetadata holds parsed episode information from Hugo frontmatter
 type EpisodeMetadata struct {
@@ -40,6 +58,9 @@ func ParseEpisodeMetadata(markdownPath string) (*EpisodeMetadata, error) {
 
 	if meta.Episode == "" {
 		return nil, fmt.Errorf("missing required field: episode")
+	}
+	if _, err := ParseEpisodeNumber(meta.Episode); err != nil {
+		return nil, fmt.Errorf("invalid episode field: %w", err)
 	}
 	if meta.Title == "" {
 		return nil, fmt.Errorf("missing required field: title")

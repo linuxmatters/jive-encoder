@@ -149,11 +149,12 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 			wantErr: false, // Not empty string, so passes validation
 		},
 		{
-			name:    "whitespace-only num (not trimmed by validator)",
-			title:   "Episode",
-			num:     "   ",
-			cover:   "cover.png",
-			wantErr: false, // Not empty string, so passes validation
+			name:     "whitespace-only num (rejected as non-numeric)",
+			title:    "Episode",
+			num:      "   ",
+			cover:    "cover.png",
+			wantErr:  true,
+			errMatch: "invalid --num flag",
 		},
 
 		// Edge cases: numeric-like values
@@ -165,18 +166,20 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "num as negative (still valid as string)",
-			title:   "Episode",
-			num:     "-1",
-			cover:   "cover.png",
-			wantErr: false,
+			name:     "num as negative (rejected)",
+			title:    "Episode",
+			num:      "-1",
+			cover:    "cover.png",
+			wantErr:  true,
+			errMatch: "invalid --num flag",
 		},
 		{
-			name:    "num as decimal (valid as string)",
-			title:   "Episode",
-			num:     "1.5",
-			cover:   "cover.png",
-			wantErr: false,
+			name:     "num as decimal (rejected as non-integer)",
+			title:    "Episode",
+			num:      "1.5",
+			cover:    "cover.png",
+			wantErr:  true,
+			errMatch: "invalid --num flag",
 		},
 
 		// Cover art path variations

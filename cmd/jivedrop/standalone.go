@@ -23,6 +23,10 @@ func (s *StandaloneWorkflow) Validate() error {
 		return fmt.Errorf("standalone mode requires --num flag (episode number)")
 	}
 
+	if _, err := encoder.ParseEpisodeNumber(CLI.Num); err != nil {
+		return fmt.Errorf("invalid --num flag: %w", err)
+	}
+
 	if CLI.Cover == "" {
 		return fmt.Errorf("standalone mode requires --cover flag (cover art path)")
 	}
