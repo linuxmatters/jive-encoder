@@ -110,9 +110,7 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 
 // PostEncode displays podcast statistics and handles frontmatter comparison and update prompting.
 func (h *HugoWorkflow) PostEncode(stats *encoder.FileStats, outputPath string) error {
-	fmt.Println("\nPodcast statistics:")
-	cli.PrintLabelValue("•   podcast_duration:", stats.DurationString)
-	cli.PrintLabelValue("•   podcast_bytes:", fmt.Sprintf("%d", stats.FileSizeBytes))
+	printPodcastStats(stats)
 
 	needsUpdate := false
 	if h.hugoMetadata.PodcastDuration != "" && h.hugoMetadata.PodcastDuration != stats.DurationString {

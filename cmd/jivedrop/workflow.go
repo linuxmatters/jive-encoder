@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+
+	"github.com/linuxmatters/jivedrop/internal/cli"
 	"github.com/linuxmatters/jivedrop/internal/encoder"
 	"github.com/linuxmatters/jivedrop/internal/id3"
 )
@@ -19,6 +22,13 @@ type Workflow interface {
 	// PostEncode handles post-encoding operations: stats display and,
 	// in Hugo mode, frontmatter comparison and update prompting.
 	PostEncode(stats *encoder.FileStats, outputPath string) error
+}
+
+// printPodcastStats displays the common podcast statistics shared by every workflow.
+func printPodcastStats(stats *encoder.FileStats) {
+	fmt.Println("\nPodcast statistics:")
+	cli.PrintLabelValue("•   podcast_duration:", stats.DurationString)
+	cli.PrintLabelValue("•   podcast_bytes:", fmt.Sprintf("%d", stats.FileSizeBytes))
 }
 
 // newWorkflow returns the Workflow implementation for the given mode.

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/linuxmatters/jivedrop/internal/cli"
 	"github.com/linuxmatters/jivedrop/internal/encoder"
 	"github.com/linuxmatters/jivedrop/internal/id3"
 )
@@ -63,9 +62,7 @@ func (s *StandaloneWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 
 // PostEncode displays podcast statistics. Standalone mode has no frontmatter to update.
 func (s *StandaloneWorkflow) PostEncode(stats *encoder.FileStats, outputPath string) error {
-	fmt.Println("\nPodcast statistics:")
-	cli.PrintLabelValue("•   podcast_duration:", stats.DurationString)
-	cli.PrintLabelValue("•   podcast_bytes:", fmt.Sprintf("%d", stats.FileSizeBytes))
+	printPodcastStats(stats)
 	return nil
 }
 
