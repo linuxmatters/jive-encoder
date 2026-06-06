@@ -2,10 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/harmonica"
 	"github.com/linuxmatters/jivedrop/internal/encoder"
 )
 
@@ -19,6 +21,34 @@ type ProgressUpdate struct {
 // EncodingCompleteMsg signals that encoding has finished
 type EncodingCompleteMsg struct {
 	Err error
+}
+
+// frameTickMsg drives the animation clock at a fixed frame rate.
+type frameTickMsg struct{}
+
+// spinnerFrames are the shimmer glyphs advanced off the shared tick. The
+// renderer (progressView) reads this slice via m.anim.spinnerFrame.
+var spinnerFrames = []string{"·", "✦", "✧", "✶"}
+
+// spinnerTicksPerFrame throttles the 30fps shared tick down to ~8fps spinner
+// cadence (30 / 4 ≈ 7.5fps).
+const spinnerTicksPerFrame = 4
+
+// settleEpsilon is the convergence threshold for the completion settle: once the
+// spring is within this distance of 1.0 with near-zero velocity, the program quits.
+const settleEpsilon = 0.001
+
+// settleCap bounds the completion settle so a non-converging spring cannot hang.
+const settleCap = 500 * time.Millisecond
+
+// animState groups the animation fields, keeping EncodeModel legible.
+type animState struct {
+	spring       harmonica.Spring
+	springPos    float64
+	springVel    float64
+	spinnerFrame int
+	tickCount    int
+	settleStart  time.Time
 }
 
 // EncodeModel is the Bubbletea model for encoding progress
@@ -45,11 +75,18 @@ type EncodeModel struct {
 
 	// Completion state
 	complete bool
+	settling bool
 	err      error
+
+	// nonInteractive suppresses the rendered view under WithoutRenderer mode.
+	nonInteractive bool
+
+	// Animation state
+	anim animState
 }
 
 // NewEncodeModel creates a new encoding model
-func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int) *EncodeModel {
+func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, nonInteractive bool) *EncodeModel {
 	sampleRate, channels, format := enc.GetInputInfo()
 
 	// Disco ball gradient: indigo → white (cool shimmer effect)
@@ -70,6 +107,10 @@ func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int) 
 		inputChannels:  channels,
 		outputMode:     outputMode,
 		outputBitrate:  outputBitrate,
+		nonInteractive: nonInteractive,
+		anim: animState{
+			spring: harmonica.NewSpring(harmonica.FPS(30), 6.0, 0.7),
+		},
 	}
 }
 
@@ -78,6 +119,7 @@ func (m *EncodeModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.startEncoding(),
 		m.waitForProgress(),
+		m.tickFrame(),
 	)
 }
 
@@ -103,10 +145,46 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, m.waitForProgress()
 
+	case frameTickMsg:
+		target := m.calculateProgress() / 100
+		if m.settling {
+			target = 1.0
+		}
+		m.anim.springPos, m.anim.springVel = m.anim.spring.Update(m.anim.springPos, m.anim.springVel, target)
+
+		// Advance the spinner frame ourselves off this shared tick, throttled to
+		// ~8fps. The spinner's own Tick loop is never started.
+		m.anim.tickCount++
+		if m.anim.tickCount >= spinnerTicksPerFrame {
+			m.anim.tickCount = 0
+			m.anim.spinnerFrame = (m.anim.spinnerFrame + 1) % len(spinnerFrames)
+		}
+
+		if m.settling {
+			converged := math.Abs(m.anim.springPos-1) < settleEpsilon && math.Abs(m.anim.springVel) < settleEpsilon
+			if converged || time.Since(m.anim.settleStart) > settleCap {
+				m.settling = false
+				return m, tea.Quit
+			}
+			return m, m.tickFrame()
+		}
+		if !m.complete {
+			return m, m.tickFrame()
+		}
+		return m, nil
+
 	case EncodingCompleteMsg:
+		if msg.Err != nil {
+			m.complete = true
+			m.err = msg.Err
+			return m, tea.Quit
+		}
+		// Success: settle the spring to 100% before quitting, keeping the bar
+		// visible via the settling → progressView route.
 		m.complete = true
-		m.err = msg.Err
-		return m, tea.Quit
+		m.settling = true
+		m.anim.settleStart = time.Now()
+		return m, m.tickFrame()
 
 	case error:
 		m.err = msg
@@ -119,8 +197,18 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View renders the UI
 func (m *EncodeModel) View() tea.View {
+	if m.nonInteractive {
+		// WithoutRenderer mode emits no frames; return an empty view so no
+		// partial output reaches the pipe.
+		return tea.NewView("")
+	}
+
 	if m.err != nil {
 		return tea.NewView(errorView(m.err))
+	}
+
+	if m.settling {
+		return tea.NewView(progressView(m))
 	}
 
 	if m.complete {
@@ -161,6 +249,13 @@ func (m *EncodeModel) waitForProgress() tea.Cmd {
 		}
 		return update
 	}
+}
+
+// tickFrame schedules the next animation frame at 30fps.
+func (m *EncodeModel) tickFrame() tea.Cmd {
+	return tea.Tick(time.Second/30, func(time.Time) tea.Msg {
+		return frameTickMsg{}
+	})
 }
 
 // calculateProgress returns progress percentage (0-100)

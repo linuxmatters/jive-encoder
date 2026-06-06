@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/linuxmatters/jivedrop/internal/encoder"
 )
 
@@ -11,23 +12,43 @@ import (
 func progressView(m *EncodeModel) string {
 	var b strings.Builder
 
-	b.WriteString(headerStyle.Render("Encoding to MP3..."))
+	// Persistent spinner accent rendered off the shared tick (see encode.go).
+	spinnerGlyph := spinnerStyle.Render(spinnerFrames[m.anim.spinnerFrame%len(spinnerFrames)])
+
+	// Before the first non-zero progress, FFmpeg is still initialising, so the
+	// spinner stands in as an indeterminate indicator with a "preparing" cue.
+	if m.totalSamples == 0 {
+		fmt.Fprintf(&b, "%s %s",
+			spinnerGlyph,
+			headerStyle.Render("Preparing to encode..."),
+		)
+		return boxStyle.Render(b.String())
+	}
+
+	fmt.Fprintf(&b, "%s %s", spinnerGlyph, headerStyle.Render("Encoding to MP3..."))
 	b.WriteString("\n\n")
 
-	progress := m.calculateProgress() / 100.0 // ViewAs expects a 0.0-1.0 fraction.
-	b.WriteString(m.progressBar.ViewAs(progress))
-	fmt.Fprintf(&b, "  %s", highlightStyle.Render(fmt.Sprintf("%3.0f%%", progress*100)))
+	// Clamp the displayed fraction to [0,1] so an under-damped spring
+	// overshoot never renders >100%. The spring's internal state keeps
+	// its overshoot to settle correctly.
+	display := max(0, min(1, m.anim.springPos))
+	b.WriteString(m.progressBar.ViewAs(display))
+	fmt.Fprintf(&b, "  %s", highlightStyle.Render(fmt.Sprintf("%3.0f%%", display*100)))
 	b.WriteString("\n\n")
 
 	elapsed := formatDurationHuman(m.lastUpdateTime.Sub(m.startTime))
 	remaining := formatDurationHuman(m.calculateTimeRemaining())
 	speed := m.calculateSpeed()
 
-	stats := fmt.Sprintf("%s %s   %s %s   %s",
+	stats := lipgloss.JoinHorizontal(lipgloss.Top,
 		keyStyle.Render("Elapsed:"),
+		" ",
 		highlightStyle.Render(elapsed),
+		"   ",
 		mutedStyle.Render("~Remaining:"),
+		" ",
 		mutedStyle.Render(remaining),
+		"   ",
 		accentStyle.Render(fmt.Sprintf("%.1fx realtime", speed)),
 	)
 
@@ -46,14 +67,21 @@ func progressView(m *EncodeModel) string {
 		m.outputBitrate,
 	)
 
-	fmt.Fprintf(&b, "%s  %s\n",
-		keyStyle.Render("Input:"),
-		valueStyle.Render(inputSpec),
+	specBlock := lipgloss.JoinVertical(lipgloss.Left,
+		lipgloss.JoinHorizontal(lipgloss.Top,
+			keyStyle.Render("Input:"),
+			"  ",
+			valueStyle.Render(inputSpec),
+		),
+		lipgloss.JoinHorizontal(lipgloss.Top,
+			keyStyle.Render("Output:"),
+			"  ",
+			valueStyle.Render(outputSpec),
+		),
 	)
-	fmt.Fprintf(&b, "%s  %s\n",
-		keyStyle.Render("Output:"),
-		valueStyle.Render(outputSpec),
-	)
+
+	b.WriteString(specBlock)
+	b.WriteString("\n")
 
 	return boxStyle.Render(b.String())
 }
@@ -69,13 +97,15 @@ func completeView(m *EncodeModel) string {
 		speed,
 	)
 
-	return msg + "\n"
+	return boxStyle.Render(lipgloss.JoinVertical(lipgloss.Left, msg))
 }
 
 // errorView renders an error message
 func errorView(err error) string {
-	return fmt.Sprintf("%s %s\n",
+	msg := fmt.Sprintf("%s %s",
 		errorStyle.Render("Error:"),
 		err.Error(),
 	)
+
+	return boxStyle.Render(lipgloss.JoinVertical(lipgloss.Left, msg))
 }

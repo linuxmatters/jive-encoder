@@ -108,11 +108,11 @@ install: build
 # Record gif
 vhs: build
     @vhs ./jivedrop.tape
-    rm LMP67.mp3 2>/dev/null || true
+    rm LMP80.mp3 2>/dev/null || true
 
 # Test encoder
 test-encoder: build
-    @echo n | ./jivedrop testdata/LMP67.flac testdata/67.md --output-path testdata/
+    @echo n | ./jivedrop testdata/LMP80.flac testdata/80.md --output-path testdata/
 
 # Run linters
 lint:

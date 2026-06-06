@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/kong"
+	"github.com/charmbracelet/x/term"
 	"github.com/linuxmatters/jivedrop/internal/cli"
 	"github.com/linuxmatters/jivedrop/internal/encoder"
 	"github.com/linuxmatters/jivedrop/internal/id3"
@@ -234,9 +235,20 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 	}()
 
 	fmt.Println()
-	encodeModel := ui.NewEncodeModel(enc, outputMode, outputBitrate)
 
-	p := tea.NewProgram(encodeModel)
+	// Drive the TUI only on a real terminal. Without a TTY the renderer is
+	// disabled so no ANSI box-drawing or cursor escapes reach the pipe.
+	isTTY := term.IsTerminal(os.Stdout.Fd())
+	encodeModel := ui.NewEncodeModel(enc, outputMode, outputBitrate, !isTTY)
+	var p *tea.Program
+	if isTTY {
+		p = tea.NewProgram(encodeModel, tea.WithFPS(30))
+	} else {
+		// WithoutRenderer stops output; WithInput(nil) stops Bubbletea
+		// opening /dev/tty for input, which would fail in a pipe or CI.
+		p = tea.NewProgram(encodeModel, tea.WithoutRenderer(), tea.WithInput(nil))
+	}
+
 	finalModel, err := p.Run()
 	if err != nil {
 		return nil, fmt.Errorf("UI error: %w", err)
@@ -248,6 +260,12 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 			os.Remove(req.OutputPath)
 			return nil, fmt.Errorf("encoding failed: %w", encModel.Error())
 		}
+	}
+
+	// tea.Printf/Println no-op under WithoutRenderer, so emit the completion
+	// line directly from here when running without a TTY.
+	if !isTTY {
+		fmt.Printf("Encoding complete: %s\n", req.OutputPath)
 	}
 
 	coverResult := <-coverArtChan

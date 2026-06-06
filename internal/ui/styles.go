@@ -27,6 +27,10 @@ var accentStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(accentColor)
 
+// Spinner style for the encoding progress indicator
+var spinnerStyle = lipgloss.NewStyle().
+	Foreground(accentColor)
+
 // Shared styles from cli package
 var (
 	successStyle   = cli.SuccessStyle
