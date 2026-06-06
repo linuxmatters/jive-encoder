@@ -156,22 +156,13 @@ func TestHugoWorkflowValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore global state
-			originalEpisodeMD := CLI.EpisodeMD
-			originalAudioFile := CLI.AudioFile
-			defer func() {
-				CLI.EpisodeMD = originalEpisodeMD
-				CLI.AudioFile = originalAudioFile
-			}()
-
-			// Set test value
-			CLI.EpisodeMD = tt.episodeMD
-			// Set a dummy audio file so file-existence checks do not mask
-			// the argument validation errors we are testing for.
-			CLI.AudioFile = "testdata"
-
-			// Call Validate on HugoWorkflow
-			wf := &HugoWorkflow{}
+			// Construct the workflow with the test inputs threaded through
+			// CLIOptions. A dummy audio file keeps file-existence checks from
+			// masking the argument validation errors we are testing for.
+			wf := &HugoWorkflow{opts: CLIOptions{
+				EpisodeMD: tt.episodeMD,
+				AudioFile: "testdata",
+			}}
 			err := wf.Validate()
 
 			// Check error expectations
@@ -249,20 +240,13 @@ func TestHugoWorkflowValidate_Integration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore global state
-			originalEpisodeMD := CLI.EpisodeMD
-			originalAudioFile := CLI.AudioFile
-			defer func() {
-				CLI.EpisodeMD = originalEpisodeMD
-				CLI.AudioFile = originalAudioFile
-			}()
-
-			// Set test value
-			CLI.EpisodeMD = tt.episodeMD
-			CLI.AudioFile = "testdata"
-
-			// Call Validate on HugoWorkflow
-			wf := &HugoWorkflow{}
+			// Construct the workflow with the test inputs threaded through
+			// CLIOptions. A dummy audio file keeps file-existence checks from
+			// masking the argument validation errors we are testing for.
+			wf := &HugoWorkflow{opts: CLIOptions{
+				EpisodeMD: tt.episodeMD,
+				AudioFile: "testdata",
+			}}
 			err := wf.Validate()
 
 			// Check error expectations

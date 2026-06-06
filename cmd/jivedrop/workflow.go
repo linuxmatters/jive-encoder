@@ -31,13 +31,29 @@ func printPodcastStats(stats *encoder.FileStats) {
 	cli.PrintLabelValue("•   podcast_bytes:", fmt.Sprintf("%d", stats.FileSizeBytes))
 }
 
-// newWorkflow returns the Workflow implementation for the given mode.
-func newWorkflow(mode WorkflowMode) Workflow {
+// CLIOptions holds the parsed CLI fields a workflow needs. It is built once in
+// run() from the global CLI, confining global reads to the construction site so
+// workflow methods read their inputs from receiver data instead.
+type CLIOptions struct {
+	AudioFile string
+	EpisodeMD string
+	Num       string
+	Title     string
+	Artist    string
+	Album     string
+	Date      string
+	Comment   string
+	Cover     string
+}
+
+// newWorkflow returns the Workflow implementation for the given mode, populated
+// with the parsed CLI options.
+func newWorkflow(mode WorkflowMode, opts CLIOptions) Workflow {
 	switch mode {
 	case HugoMode:
-		return &HugoWorkflow{}
+		return &HugoWorkflow{opts: opts}
 	case StandaloneMode:
-		return &StandaloneWorkflow{}
+		return &StandaloneWorkflow{opts: opts}
 	default:
 		panic("unknown workflow mode")
 	}

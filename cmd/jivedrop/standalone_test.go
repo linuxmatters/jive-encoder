@@ -215,28 +215,15 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore global state
-			originalTitle := CLI.Title
-			originalNum := CLI.Num
-			originalCover := CLI.Cover
-			originalAudioFile := CLI.AudioFile
-			defer func() {
-				CLI.Title = originalTitle
-				CLI.Num = originalNum
-				CLI.Cover = originalCover
-				CLI.AudioFile = originalAudioFile
-			}()
-
-			// Set test values
-			CLI.Title = tt.title
-			CLI.Num = tt.num
-			CLI.Cover = tt.cover
-			// Set a dummy audio file so file-existence checks do not mask
-			// the argument validation errors we are testing for.
-			CLI.AudioFile = "testdata"
-
-			// Call Validate on StandaloneWorkflow
-			wf := &StandaloneWorkflow{}
+			// Construct the workflow with the test inputs threaded through
+			// CLIOptions. A dummy audio file keeps file-existence checks from
+			// masking the argument validation errors we are testing for.
+			wf := &StandaloneWorkflow{opts: CLIOptions{
+				Title:     tt.title,
+				Num:       tt.num,
+				Cover:     tt.cover,
+				AudioFile: "testdata",
+			}}
 			err := wf.Validate()
 
 			// Check error expectations
@@ -340,26 +327,15 @@ func TestStandaloneWorkflowValidate_Integration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore global state
-			originalTitle := CLI.Title
-			originalNum := CLI.Num
-			originalCover := CLI.Cover
-			originalAudioFile := CLI.AudioFile
-			defer func() {
-				CLI.Title = originalTitle
-				CLI.Num = originalNum
-				CLI.Cover = originalCover
-				CLI.AudioFile = originalAudioFile
-			}()
-
-			// Set test values
-			CLI.Title = tt.title
-			CLI.Num = tt.num
-			CLI.Cover = tt.cover
-			CLI.AudioFile = "testdata"
-
-			// Call Validate on StandaloneWorkflow
-			wf := &StandaloneWorkflow{}
+			// Construct the workflow with the test inputs threaded through
+			// CLIOptions. A dummy audio file keeps file-existence checks from
+			// masking the argument validation errors we are testing for.
+			wf := &StandaloneWorkflow{opts: CLIOptions{
+				Title:     tt.title,
+				Num:       tt.num,
+				Cover:     tt.cover,
+				AudioFile: "testdata",
+			}}
 			err := wf.Validate()
 
 			// Check error expectations

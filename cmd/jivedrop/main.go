@@ -301,7 +301,18 @@ func run() int {
 	}
 
 	mode := detectMode()
-	wf := newWorkflow(mode)
+	opts := CLIOptions{
+		AudioFile: CLI.AudioFile,
+		EpisodeMD: CLI.EpisodeMD,
+		Num:       CLI.Num,
+		Title:     CLI.Title,
+		Artist:    CLI.Artist,
+		Album:     CLI.Album,
+		Date:      CLI.Date,
+		Comment:   CLI.Comment,
+		Cover:     CLI.Cover,
+	}
+	wf := newWorkflow(mode, opts)
 
 	if err := wf.Validate(); err != nil {
 		cli.PrintError(err.Error())
