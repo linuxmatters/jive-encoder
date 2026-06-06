@@ -302,7 +302,6 @@ func run() int {
 
 	mode := detectMode()
 	opts := CLIOptions{
-		AudioFile: CLI.AudioFile,
 		EpisodeMD: CLI.EpisodeMD,
 		Num:       CLI.Num,
 		Title:     CLI.Title,

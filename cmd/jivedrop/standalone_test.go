@@ -222,7 +222,6 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 				Title:     tt.title,
 				Num:       tt.num,
 				Cover:     tt.cover,
-				AudioFile: "testdata",
 			}}
 			err := wf.Validate()
 
@@ -334,7 +333,6 @@ func TestStandaloneWorkflowValidate_Integration(t *testing.T) {
 				Title:     tt.title,
 				Num:       tt.num,
 				Cover:     tt.cover,
-				AudioFile: "testdata",
 			}}
 			err := wf.Validate()
 

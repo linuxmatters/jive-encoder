@@ -35,7 +35,6 @@ func printPodcastStats(stats *encoder.FileStats) {
 // run() from the global CLI, confining global reads to the construction site so
 // workflow methods read their inputs from receiver data instead.
 type CLIOptions struct {
-	AudioFile string
 	EpisodeMD string
 	Num       string
 	Title     string

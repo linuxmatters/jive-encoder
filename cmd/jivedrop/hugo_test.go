@@ -161,7 +161,6 @@ func TestHugoWorkflowValidate(t *testing.T) {
 			// masking the argument validation errors we are testing for.
 			wf := &HugoWorkflow{opts: CLIOptions{
 				EpisodeMD: tt.episodeMD,
-				AudioFile: "testdata",
 			}}
 			err := wf.Validate()
 
@@ -245,7 +244,6 @@ func TestHugoWorkflowValidate_Integration(t *testing.T) {
 			// masking the argument validation errors we are testing for.
 			wf := &HugoWorkflow{opts: CLIOptions{
 				EpisodeMD: tt.episodeMD,
-				AudioFile: "testdata",
 			}}
 			err := wf.Validate()
 
