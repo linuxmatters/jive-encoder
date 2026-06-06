@@ -262,10 +262,13 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 		}
 	}
 
-	// tea.Printf/Println no-op under WithoutRenderer, so emit the completion
-	// line directly from here when running without a TTY.
+	// tea.Printf/Println no-op under WithoutRenderer, so emit the encode-stage
+	// line directly from here when running without a TTY. This mirrors the TTY
+	// completeView (which reports the encode finishing, not the whole job);
+	// cover-art and ID3 work still follow, and PrintSuccessLabel below marks
+	// the final artefact on success.
 	if !isTTY {
-		fmt.Printf("Encoding complete: %s\n", req.OutputPath)
+		fmt.Println("Audio encoded, embedding metadata...")
 	}
 
 	coverResult := <-coverArtChan
