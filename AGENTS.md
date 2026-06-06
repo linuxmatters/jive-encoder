@@ -39,7 +39,7 @@ internal/
   cli/                   # Lipgloss-styled output
     help.go              # Custom Kong help printer
     styles.go            # Colour palette (matches Jivefire sibling project)
-third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.0 static bindings
+third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.1 static bindings
 ```
 
 ## Key Patterns
@@ -97,7 +97,7 @@ third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.0 static bindings
 
 ## FFmpeg-Statigo Submodule
 
-This project uses [`ffmpeg-statigo`](https://github.com/linuxmatters/ffmpeg-statigo) for FFmpeg 8.0 static bindings:
+This project uses [`ffmpeg-statigo`](https://github.com/linuxmatters/ffmpeg-statigo) for FFmpeg 8.1 static bindings:
 
 - **Location:** `third_party/ffmpeg-statigo/`
 - **Auto-generated files:** `*.gen.go` files (e.g., `functions.gen.go`, `structs.gen.go`) — do not edit
