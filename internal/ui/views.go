@@ -38,7 +38,12 @@ func progressView(m *EncodeModel) string {
 
 	elapsed := formatDurationHuman(m.lastUpdateTime.Sub(m.startTime))
 	remaining := formatDurationHuman(m.calculateTimeRemaining())
+	// During settle the bar is at 100% but the loop keeps ticking; use the frozen
+	// speed so the figure does not drift as wall-clock time grows.
 	speed := m.calculateSpeed()
+	if m.settling {
+		speed = m.anim.finalSpeed
+	}
 
 	stats := lipgloss.JoinHorizontal(lipgloss.Top,
 		keyStyle.Render("Elapsed:"),

@@ -30,9 +30,9 @@ type frameTickMsg struct{}
 // renderer (progressView) reads this slice via m.anim.spinnerFrame.
 var spinnerFrames = []string{"·", "✦", "✧", "✶"}
 
-// spinnerTicksPerFrame throttles the 30fps shared tick down to ~8fps spinner
-// cadence (30 / 4 ≈ 7.5fps).
-const spinnerTicksPerFrame = 4
+// spinnerTicksPerFrame throttles the 60fps shared tick down to ~8fps spinner
+// cadence (60 / 8 ≈ 7.5fps).
+const spinnerTicksPerFrame = 8
 
 // settleEpsilon is the convergence threshold for the completion settle: once the
 // spring is within this distance of 1.0 with near-zero velocity, the program quits.
@@ -49,6 +49,9 @@ type animState struct {
 	spinnerFrame int
 	tickCount    int
 	settleStart  time.Time
+	// finalSpeed freezes the "Nx realtime" figure captured the instant encoding
+	// completes, so progressView renders a stable value through the settle phase.
+	finalSpeed float64
 }
 
 // EncodeModel is the Bubbletea model for encoding progress
@@ -109,7 +112,7 @@ func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, 
 		outputBitrate:  outputBitrate,
 		nonInteractive: nonInteractive,
 		anim: animState{
-			spring: harmonica.NewSpring(harmonica.FPS(30), 6.0, 0.7),
+			spring: harmonica.NewSpring(harmonica.FPS(60), 6.0, 0.7),
 		},
 	}
 }
@@ -184,6 +187,7 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.complete = true
 		m.settling = true
 		m.anim.settleStart = time.Now()
+		m.anim.finalSpeed = m.calculateSpeed()
 		return m, m.tickFrame()
 
 	case error:
@@ -251,9 +255,9 @@ func (m *EncodeModel) waitForProgress() tea.Cmd {
 	}
 }
 
-// tickFrame schedules the next animation frame at 30fps.
+// tickFrame schedules the next animation frame at 60fps.
 func (m *EncodeModel) tickFrame() tea.Cmd {
-	return tea.Tick(time.Second/30, func(time.Time) tea.Msg {
+	return tea.Tick(time.Second/60, func(time.Time) tea.Msg {
 		return frameTickMsg{}
 	})
 }

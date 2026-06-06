@@ -242,7 +242,7 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 	encodeModel := ui.NewEncodeModel(enc, outputMode, outputBitrate, !isTTY)
 	var p *tea.Program
 	if isTTY {
-		p = tea.NewProgram(encodeModel, tea.WithFPS(30))
+		p = tea.NewProgram(encodeModel, tea.WithFPS(60))
 	} else {
 		// WithoutRenderer stops output; WithInput(nil) stops Bubbletea
 		// opening /dev/tty for input, which would fail in a pipe or CI.
