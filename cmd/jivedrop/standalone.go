@@ -33,10 +33,6 @@ func (s *StandaloneWorkflow) Validate() error {
 		return fmt.Errorf("standalone mode requires --cover flag (cover art path)")
 	}
 
-	if _, err := os.Stat(s.opts.AudioFile); err != nil {
-		return fmt.Errorf("audio file not accessible: %w", err)
-	}
-
 	if _, err := os.Stat(s.opts.Cover); err != nil {
 		return fmt.Errorf("cover art not accessible: %w", err)
 	}

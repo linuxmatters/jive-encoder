@@ -314,6 +314,13 @@ func run() int {
 	}
 	wf := newWorkflow(mode, opts)
 
+	// Audio-file existence is mode-independent, so check it once here before
+	// the mode-specific workflow validation.
+	if _, err := os.Stat(CLI.AudioFile); err != nil {
+		cli.PrintError(fmt.Errorf("audio file not accessible: %w", err).Error())
+		return 1
+	}
+
 	if err := wf.Validate(); err != nil {
 		cli.PrintError(err.Error())
 		return 1

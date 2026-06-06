@@ -29,10 +29,6 @@ func (h *HugoWorkflow) Validate() error {
 		return fmt.Errorf("episode markdown file must have .md extension: %s", h.opts.EpisodeMD)
 	}
 
-	if _, err := os.Stat(h.opts.AudioFile); err != nil {
-		return fmt.Errorf("audio file not accessible: %w", err)
-	}
-
 	if _, err := os.Stat(h.opts.EpisodeMD); err != nil {
 		return fmt.Errorf("episode file not accessible: %w", err)
 	}
