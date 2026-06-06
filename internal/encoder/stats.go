@@ -9,7 +9,6 @@ import (
 // FileStats holds podcast frontmatter statistics
 type FileStats struct {
 	DurationString string // HH:MM:SS format
-	DurationSecs   int64  // Duration in seconds
 	FileSizeBytes  int64  // File size in bytes
 }
 
@@ -25,7 +24,6 @@ func GetFileStats(mp3Path string, durationSecs int64) (*FileStats, error) {
 
 	return &FileStats{
 		DurationString: durationStr,
-		DurationSecs:   durationSecs,
 		FileSizeBytes:  fileInfo.Size(),
 	}, nil
 }

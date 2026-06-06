@@ -50,15 +50,10 @@ func TestGetFileStats(t *testing.T) {
 		t.Errorf("Duration format incorrect: got %s, want HH:MM:SS format", stats.DurationString)
 	}
 
-	// Verify duration matches what we passed in
-	if stats.DurationSecs != testDurationSecs {
-		t.Errorf("DurationSecs = %d; want %d", stats.DurationSecs, testDurationSecs)
-	}
-
 	if stats.FileSizeBytes <= 0 {
 		t.Errorf("FileSizeBytes = %d; want > 0", stats.FileSizeBytes)
 	}
 
-	t.Logf("Stats for %s: duration=%s (%ds), size=%d bytes",
-		testFile, stats.DurationString, stats.DurationSecs, stats.FileSizeBytes)
+	t.Logf("Stats for %s: duration=%s, size=%d bytes",
+		testFile, stats.DurationString, stats.FileSizeBytes)
 }
