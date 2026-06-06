@@ -219,9 +219,9 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 			// CLIOptions. A dummy audio file keeps file-existence checks from
 			// masking the argument validation errors we are testing for.
 			wf := &StandaloneWorkflow{opts: CLIOptions{
-				Title:     tt.title,
-				Num:       tt.num,
-				Cover:     tt.cover,
+				Title: tt.title,
+				Num:   tt.num,
+				Cover: tt.cover,
 			}}
 			err := wf.Validate()
 
@@ -330,9 +330,9 @@ func TestStandaloneWorkflowValidate_Integration(t *testing.T) {
 			// CLIOptions. A dummy audio file keeps file-existence checks from
 			// masking the argument validation errors we are testing for.
 			wf := &StandaloneWorkflow{opts: CLIOptions{
-				Title:     tt.title,
-				Num:       tt.num,
-				Cover:     tt.cover,
+				Title: tt.title,
+				Num:   tt.num,
+				Cover: tt.cover,
 			}}
 			err := wf.Validate()
 
