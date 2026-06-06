@@ -228,8 +228,3 @@ func formatDurationHuman(d time.Duration) string {
 func (m *EncodeModel) Error() error {
 	return m.err
 }
-
-// Complete returns whether encoding has finished
-func (m *EncodeModel) Complete() bool {
-	return m.complete
-}
