@@ -112,7 +112,7 @@ vhs: build
 
 # Test encoder
 test-encoder: build
-    @echo n | ./jivedrop testdata/LMP80.flac testdata/80.md --output-path testdata/
+    @echo n | ./jivedrop testdata/LMP67.flac testdata/67.md --output-path testdata/
 
 # Run linters
 lint:
