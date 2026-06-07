@@ -215,12 +215,8 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 	channelMode := encoder.FormatChannelMode(channels)
 	cli.PrintLabelValue("• Input:", fmt.Sprintf("%s %dHz %s", format, sampleRate, channelMode))
 
-	outputBitrate := 112
-	outputMode := "mono"
-	if req.Stereo {
-		outputBitrate = 192
-		outputMode = "stereo"
-	}
+	outputBitrate := enc.Bitrate()
+	outputMode := enc.ChannelMode()
 
 	// Process cover art concurrently so scaling overlaps the encode.
 	coverArtChan := make(chan coverArtResult, 1)

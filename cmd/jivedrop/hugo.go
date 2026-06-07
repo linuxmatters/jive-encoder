@@ -57,17 +57,12 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 	artist := HugoDefaultArtist
 	comment := HugoDefaultComment
 	date := encoder.FormatDateForID3(metadata.Date)
-	var album string
 
 	// Allow flag overrides
 	if h.opts.Artist != "" {
 		artist = h.opts.Artist
 	}
-	if h.opts.Album != "" {
-		album = h.opts.Album
-	} else {
-		album = artist // Inherit from artist
-	}
+	album := resolveAlbum(h.opts.Album, artist)
 	if h.opts.Comment != "" {
 		comment = h.opts.Comment
 	}

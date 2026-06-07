@@ -42,10 +42,7 @@ func (s *StandaloneWorkflow) Validate() error {
 
 // CollectMetadata builds TagInfo from CLI flags.
 func (s *StandaloneWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
-	album := s.opts.Album
-	if album == "" && s.opts.Artist != "" {
-		album = s.opts.Artist // Inherit from artist
-	}
+	album := resolveAlbum(s.opts.Album, s.opts.Artist)
 
 	tagInfo := id3.TagInfo{
 		EpisodeNumber: s.opts.Num,

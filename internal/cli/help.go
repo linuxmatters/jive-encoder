@@ -10,11 +10,6 @@ import (
 
 // Custom help styles using shared disco ball palette 🪩
 var (
-	helpTitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(PrimaryColor).
-			MarginBottom(1)
-
 	helpModeStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(PrimaryColor)
@@ -48,7 +43,7 @@ func StyledHelpPrinter(options kong.HelpOptions) kong.HelpPrinter {
 		var sb strings.Builder
 
 		// Title and description
-		sb.WriteString(helpTitleStyle.Render("Jivedrop 🪩"))
+		sb.WriteString(TitleStyle.Render("Jivedrop 🪩"))
 		sb.WriteString("\n")
 		sb.WriteString(helpDescStyle.Render("Drop your podcast .wav into a shiny MP3 with metadata, cover art, and all."))
 		sb.WriteString("\n")

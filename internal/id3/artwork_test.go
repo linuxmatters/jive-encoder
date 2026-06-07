@@ -180,8 +180,8 @@ func TestScaleCoverArt_NonExistentFile(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
-	if !strings.Contains(err.Error(), "failed to open") {
-		t.Errorf("Expected 'failed to open' in error, got: %v", err)
+	if !strings.Contains(err.Error(), "failed to read") {
+		t.Errorf("Expected 'failed to read' in error, got: %v", err)
 	}
 }
 

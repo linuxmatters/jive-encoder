@@ -24,6 +24,15 @@ type Workflow interface {
 	PostEncode(stats *encoder.FileStats) error
 }
 
+// resolveAlbum returns album, falling back to artist when album is empty so the
+// album tag inherits the artist value.
+func resolveAlbum(album, artist string) string {
+	if album == "" {
+		return artist
+	}
+	return album
+}
+
 // printPodcastStats displays the common podcast statistics shared by every workflow.
 func printPodcastStats(stats *encoder.FileStats) {
 	fmt.Println("\nPodcast statistics:")

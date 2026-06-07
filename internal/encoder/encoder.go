@@ -12,6 +12,12 @@ import (
 // encode finished. Callers treat it as a clean stop, not an encoding failure.
 var ErrCancelled = errors.New("encoding cancelled")
 
+// Podcast bitrate presets in bits per second: 192kbps stereo, 112kbps mono.
+const (
+	MonoBitrate   = 112000
+	StereoBitrate = 192000
+)
+
 // Encoder handles MP3 encoding from audio input files
 type Encoder struct {
 	inputPath  string
@@ -167,12 +173,11 @@ func (e *Encoder) openOutput() error {
 		return fmt.Errorf("failed to allocate encoder context")
 	}
 
-	// Podcast bitrate presets: 192kbps stereo, 112kbps mono.
 	if e.stereo {
-		e.encCtx.SetBitRate(192000)
+		e.encCtx.SetBitRate(StereoBitrate)
 		ffmpeg.AVChannelLayoutDefault(e.encCtx.ChLayout(), 2)
 	} else {
-		e.encCtx.SetBitRate(112000)
+		e.encCtx.SetBitRate(MonoBitrate)
 		ffmpeg.AVChannelLayoutDefault(e.encCtx.ChLayout(), 1)
 	}
 
@@ -301,17 +306,14 @@ func (e *Encoder) initFilter() error {
 	inputs.SetPadIdx(0)
 	inputs.SetNext(nil)
 
-	// Build filter spec: resample to target format, then convert channels if needed
-	var filterSpec string
+	// Build filter spec: resample to 44100Hz S16P, set the target channel layout
+	// (stereo keeps channels, mono downmixes), then reframe to LAME's 1152 size.
+	channelLayout := "mono"
 	if e.stereo {
-		// Stereo: aresample to 44100Hz S16P format, keep stereo, set frame size for LAME
-		filterSpec = fmt.Sprintf("aresample=%d:async=1,aformat=sample_fmts=s16p:sample_rates=44100:channel_layouts=stereo,asetnsamples=n=1152",
-			e.encCtx.SampleRate())
-	} else {
-		// Mono: aresample to 44100Hz S16P format, downmix to mono, set frame size for LAME
-		filterSpec = fmt.Sprintf("aresample=%d:async=1,aformat=sample_fmts=s16p:sample_rates=44100:channel_layouts=mono,asetnsamples=n=1152",
-			e.encCtx.SampleRate())
+		channelLayout = "stereo"
 	}
+	filterSpec := fmt.Sprintf("aresample=%d:async=1,aformat=sample_fmts=s16p:sample_rates=44100:channel_layouts=%s,asetnsamples=n=1152",
+		e.encCtx.SampleRate(), channelLayout)
 
 	filterSpecC := ffmpeg.ToCStr(filterSpec)
 	defer filterSpecC.Free()
@@ -581,6 +583,23 @@ func (e *Encoder) GetDurationSecs() int64 {
 	}
 	// nextPts tracks total samples written to the encoder
 	return e.nextPts / int64(sampleRate)
+}
+
+// Bitrate returns the output MP3 bitrate in kbps for the configured channel
+// mode: 192 for stereo, 112 for mono.
+func (e *Encoder) Bitrate() int {
+	if e.stereo {
+		return StereoBitrate / 1000
+	}
+	return MonoBitrate / 1000
+}
+
+// ChannelMode returns the output channel mode label: "stereo" or "mono".
+func (e *Encoder) ChannelMode() string {
+	if e.stereo {
+		return "stereo"
+	}
+	return "mono"
 }
 
 // FormatChannelMode formats channel count as "mono", "stereo", etc.

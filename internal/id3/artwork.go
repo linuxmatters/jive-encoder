@@ -19,13 +19,12 @@ import (
 // when no scaling is required, and only re-encodes scaled images or non-PNG
 // inputs.
 func ScaleCoverArt(inputPath string) ([]byte, error) {
-	file, err := os.Open(inputPath)
+	data, err := os.ReadFile(inputPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open cover art: %w", err)
+		return nil, fmt.Errorf("failed to read cover art: %w", err)
 	}
-	defer file.Close()
 
-	img, format, err := image.Decode(file)
+	img, format, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode cover art: %w", err)
 	}
@@ -49,17 +48,10 @@ func ScaleCoverArt(inputPath string) ([]byte, error) {
 	case width > 3000:
 		targetSize = 3000
 		needsScaling = true
-	default:
-		targetSize = width
 	}
 
 	// Fast path: an in-spec PNG passes through with its bytes intact.
 	if !needsScaling && format == "png" {
-		data, err := os.ReadFile(inputPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read cover art: %w", err)
-		}
-
 		return data, nil
 	}
 
