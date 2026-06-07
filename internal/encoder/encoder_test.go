@@ -1,6 +1,7 @@
 package encoder
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -408,6 +409,89 @@ func TestEncoder_ProgressCallback(t *testing.T) {
 	t.Logf("Progress callback received %d updates, samples: %d -> %d of %d",
 		len(progressUpdates), progressUpdates[0].samplesProcessed,
 		lastUpdate.samplesProcessed, totalSamples)
+}
+
+// TestEncoder_CancelMidStream verifies that Cancel, fired from within the
+// progress callback while Encode is mid-loop, stops the encode promptly with
+// ErrCancelled and leaves Close safe to call. This guards the Ctrl+C
+// use-after-free: Encode must fully return before Close frees the AV contexts.
+func TestEncoder_CancelMidStream(t *testing.T) {
+	inputPath := "../../testdata/LMP0.flac"
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		t.Skipf("Test file not found: %s", inputPath)
+	}
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "cancel.mp3")
+
+	enc, err := New(Config{
+		InputPath:  inputPath,
+		OutputPath: outputPath,
+		Stereo:     false,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create encoder: %v", err)
+	}
+	defer enc.Close()
+
+	if err := enc.Initialize(); err != nil {
+		t.Fatalf("Failed to initialize encoder: %v", err)
+	}
+
+	// Cancel on the first progress callback, i.e. while Encode is mid-loop and
+	// the AV contexts are live. The next loop iteration must observe it.
+	var callbacks int
+	cb := func(samplesProcessed, totalSamples int64) {
+		callbacks++
+		if callbacks == 1 {
+			enc.Cancel()
+		}
+	}
+
+	err = enc.Encode(cb)
+	if !errors.Is(err, ErrCancelled) {
+		t.Fatalf("Encode after Cancel: got %v, want ErrCancelled", err)
+	}
+
+	// Encode has returned, so Close must not crash on the still-allocated
+	// contexts. A use-after-free would surface as a SIGSEGV here, not a panic,
+	// but reaching the end of the test without crashing proves the race is shut.
+	enc.Close()
+}
+
+// TestEncoder_CancelBeforeEncode verifies that cancelling before Encode runs
+// returns ErrCancelled immediately without touching the stream, and Close stays
+// safe afterwards.
+func TestEncoder_CancelBeforeEncode(t *testing.T) {
+	inputPath := "../../testdata/LMP0.flac"
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		t.Skipf("Test file not found: %s", inputPath)
+	}
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "cancel-early.mp3")
+
+	enc, err := New(Config{
+		InputPath:  inputPath,
+		OutputPath: outputPath,
+		Stereo:     false,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create encoder: %v", err)
+	}
+	defer enc.Close()
+
+	if err := enc.Initialize(); err != nil {
+		t.Fatalf("Failed to initialize encoder: %v", err)
+	}
+
+	enc.Cancel()
+
+	if err := enc.Encode(nil); !errors.Is(err, ErrCancelled) {
+		t.Fatalf("Encode after early Cancel: got %v, want ErrCancelled", err)
+	}
+
+	enc.Close()
 }
 
 // TestEncoder_GetDurationSecs verifies duration calculation after encoding

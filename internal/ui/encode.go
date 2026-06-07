@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -77,9 +78,10 @@ type EncodeModel struct {
 	outputBitrate int
 
 	// Completion state
-	complete bool
-	settling bool
-	err      error
+	complete  bool
+	settling  bool
+	cancelled bool
+	err       error
 
 	// nonInteractive suppresses the rendered view under WithoutRenderer mode.
 	nonInteractive bool
@@ -130,9 +132,13 @@ func (m *EncodeModel) Init() tea.Cmd {
 func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		// Allow Ctrl+C to quit
-		if msg.String() == "ctrl+c" {
-			return m, tea.Quit
+		// Ctrl+C must cancel the encode and await its return, never quit
+		// underneath the live cgo call. Cancel signals the encoder; the program
+		// quits only once Encode returns via EncodingCompleteMsg. A second
+		// Ctrl+C is a no-op: the encode is already unwinding.
+		if msg.String() == "ctrl+c" && !m.cancelled {
+			m.cancelled = true
+			m.encoder.Cancel()
 		}
 
 	case ProgressUpdate:
@@ -177,6 +183,14 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case EncodingCompleteMsg:
+		if m.cancelled || errors.Is(msg.Err, encoder.ErrCancelled) {
+			// Cancelled: Encode has returned, so the deferred Close is now safe.
+			// Skip the settle and quit promptly. err stays nil; cancellation is
+			// reported via Cancelled().
+			m.cancelled = true
+			m.complete = true
+			return m, tea.Quit
+		}
 		if msg.Err != nil {
 			m.complete = true
 			m.err = msg.Err
@@ -209,6 +223,11 @@ func (m *EncodeModel) View() tea.View {
 
 	if m.err != nil {
 		return tea.NewView(errorView(m.err))
+	}
+
+	if m.cancelled {
+		// Keep the last progress frame on screen rather than the success view.
+		return tea.NewView(progressView(m))
 	}
 
 	if m.settling {
@@ -342,4 +361,9 @@ func formatClock(d time.Duration) string {
 // Error returns any error that occurred during encoding
 func (m *EncodeModel) Error() error {
 	return m.err
+}
+
+// Cancelled reports whether the user interrupted the encode with Ctrl+C.
+func (m *EncodeModel) Cancelled() bool {
+	return m.cancelled
 }

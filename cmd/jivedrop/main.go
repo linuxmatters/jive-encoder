@@ -255,6 +255,13 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 	}
 
 	if encModel, ok := finalModel.(*ui.EncodeModel); ok {
+		if encModel.Cancelled() {
+			// User interrupted with Ctrl+C. Encode has already returned (the model
+			// quits only after EncodingCompleteMsg), so the deferred Close below is
+			// safe. Discard the truncated MP3 and report the interrupt.
+			os.Remove(req.OutputPath)
+			return nil, fmt.Errorf("encoding cancelled")
+		}
 		if encModel.Error() != nil {
 			// Discard the truncated MP3 so a failed run leaves no partial file.
 			os.Remove(req.OutputPath)
