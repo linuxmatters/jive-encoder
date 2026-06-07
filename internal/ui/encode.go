@@ -97,7 +97,7 @@ func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, 
 	// Disco ball gradient: indigo → white (cool shimmer effect)
 	p := progress.New(
 		progress.WithColors(gradientIndigo, gradientWhite),
-		progress.WithWidth(40),
+		progress.WithWidth(progressBarWidth),
 		progress.WithoutPercentage(),
 	)
 

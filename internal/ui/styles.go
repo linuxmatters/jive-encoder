@@ -48,9 +48,26 @@ var clockStyle = lipgloss.NewStyle().
 
 // frameWidth fixes the lipgloss style width (content area plus the box's 2-cell
 // horizontal padding each side) shared by every framed view, so the progress,
-// complete and error boxes match in outer width. Derived from the widest
-// progress row (the 40-cell bar + "  " + "NNN%" = 46) plus 4 cells of padding.
+// complete and error boxes match in outer width.
 const frameWidth = 50
+
+// frameChrome is the non-content width that lipgloss's Width(frameWidth) absorbs:
+// the 2-cell rounded border plus boxStyle's Padding(1, 2) horizontal padding
+// (2 cells each side). Subtract it from frameWidth to get the content area.
+const frameChrome = 6
+
+// frameContentWidth is the usable width inside the frame's border and padding.
+const frameContentWidth = frameWidth - frameChrome
+
+// percentField is the constant-width tail after the bar: a 2-cell gap plus a
+// 4-cell "%3.0f%%" field ("100%"), kept fixed so the box never resizes across
+// single/double/triple-digit percentages.
+const percentField = 6
+
+// progressBarWidth sizes the gradient bar so the bar + gap + percentage field
+// fits inside the frame's content area with one column of slack, keeping the
+// percentage inline on the bar's line instead of wrapping below it.
+const progressBarWidth = frameContentWidth - percentField - 1
 
 // frameStyle is the shared box used by every framed view at a fixed width.
 var frameStyle = boxStyle.Width(frameWidth)
