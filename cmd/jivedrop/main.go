@@ -233,15 +233,15 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 
 // embedMetadata finishes the job after a successful encode: receive the
 // concurrently scaled cover art, write ID3 tags, and extract file statistics.
-// Returns nil stats (with nil error) when stats extraction fails but the MP3 was
-// written successfully.
-func embedMetadata(req EncodeRequest, enc *encoder.Encoder, coverArtChan <-chan coverArtResult) (*encoder.FileStats, error) {
+// The returned partial flag is true when the MP3 was written successfully but
+// stats extraction failed; in that case stats is nil and error is nil.
+func embedMetadata(req EncodeRequest, enc *encoder.Encoder, coverArtChan <-chan coverArtResult) (stats *encoder.FileStats, partial bool, err error) {
 	tagInfo := req.TagInfo
 
 	coverResult := <-coverArtChan
 	if coverResult.err != nil {
 		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing cover art: %s", req.OutputPath))
-		return nil, fmt.Errorf("failed to process cover art: %w", coverResult.err)
+		return nil, false, fmt.Errorf("failed to process cover art: %w", coverResult.err)
 	}
 
 	fmt.Println("\nEmbedding ID3v2 tags...")
@@ -249,40 +249,40 @@ func embedMetadata(req EncodeRequest, enc *encoder.Encoder, coverArtChan <-chan 
 
 	if err := id3.WriteTags(req.OutputPath, tagInfo); err != nil {
 		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing metadata: %s", req.OutputPath))
-		return nil, fmt.Errorf("failed to write ID3 tags: %w", err)
+		return nil, false, fmt.Errorf("failed to write ID3 tags: %w", err)
 	}
 
 	cli.PrintSuccessLabel("Complete:", req.OutputPath)
 
 	// Extract file statistics using duration from encoder (avoids re-opening file)
 	durationSecs := enc.GetDurationSecs()
-	stats, err := encoder.GetFileStats(req.OutputPath, durationSecs)
+	stats, err = encoder.GetFileStats(req.OutputPath, durationSecs)
 	if err != nil {
 		cli.PrintWarning(fmt.Sprintf("Could not extract file statistics: %v", err))
-		return nil, nil
+		return nil, true, nil
 	}
 
-	return stats, nil
+	return stats, false, nil
 }
 
 // encode orchestrates the full encoding pipeline: print the plan, create and
 // initialise the encoder, scale cover art concurrently, run the Bubbletea UI,
-// handle the outcome, then embed metadata and extract statistics. Returns nil
-// stats (with nil error) when stats extraction fails but the MP3 was written
-// successfully.
-func encode(req EncodeRequest) (*encoder.FileStats, error) {
+// handle the outcome, then embed metadata and extract statistics. The returned
+// partial flag is true when the MP3 was written successfully but stats
+// extraction failed; in that case stats is nil and error is nil.
+func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err error) {
 	enc, err := encoder.New(encoder.Config{
 		InputPath:  req.AudioFile,
 		OutputPath: req.OutputPath,
 		Stereo:     req.Stereo,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create encoder: %w", err)
+		return nil, false, fmt.Errorf("failed to create encoder: %w", err)
 	}
 	defer enc.Close()
 
 	if err := enc.Initialize(); err != nil {
-		return nil, fmt.Errorf("failed to initialize encoder: %w", err)
+		return nil, false, fmt.Errorf("failed to initialize encoder: %w", err)
 	}
 
 	printEncodePlan(req, enc)
@@ -306,7 +306,7 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 			// partial file.
 			os.Remove(req.OutputPath)
 		}
-		return nil, outcome.err
+		return nil, false, outcome.err
 	}
 
 	return embedMetadata(req, enc, coverArtChan)
@@ -372,7 +372,7 @@ func run() int {
 		return 1
 	}
 
-	stats, err := encode(EncodeRequest{
+	stats, partial, err := encode(EncodeRequest{
 		Mode:         mode,
 		TagInfo:      tagInfo,
 		CoverArtPath: coverArtPath,
@@ -386,8 +386,8 @@ func run() int {
 		return 1
 	}
 
-	// Stats may be nil when extraction failed but encoding succeeded
-	if stats == nil {
+	// Encoding succeeded but stats extraction failed, so skip PostEncode.
+	if partial {
 		return 0
 	}
 
