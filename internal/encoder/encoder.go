@@ -3,9 +3,14 @@ package encoder
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 
 	"github.com/linuxmatters/ffmpeg-statigo"
 )
+
+// ErrCancelled is returned by Encode when Cancel has been called before the
+// encode finished. Callers treat it as a clean stop, not an encoding failure.
+var ErrCancelled = errors.New("encoding cancelled")
 
 // Encoder handles MP3 encoding from audio input files
 type Encoder struct {
@@ -32,6 +37,10 @@ type Encoder struct {
 	totalSamples int64
 	nextPts      int64 // Track PTS for output frames
 	closed       bool  // Track if Close() has been called to prevent double-free
+
+	// cancelled is set by Cancel and observed at the top of the decode loop so
+	// Encode unwinds the cgo call chain before any Close frees the AV contexts.
+	cancelled atomic.Bool
 }
 
 // Config holds encoder configuration
@@ -330,6 +339,12 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 
 	// Main decoding loop
 	for {
+		// Observe cancellation before the next cgo call so Encode returns while
+		// the AV contexts are still valid, ahead of any Close.
+		if e.cancelled.Load() {
+			return ErrCancelled
+		}
+
 		if _, err := ffmpeg.AVReadFrame(e.ifmtCtx, packet); err != nil {
 			if errors.Is(err, ffmpeg.AVErrorEOF) {
 				break
@@ -350,6 +365,10 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 		ffmpeg.AVPacketUnref(packet)
 
 		for {
+			if e.cancelled.Load() {
+				return ErrCancelled
+			}
+
 			if _, err := ffmpeg.AVCodecReceiveFrame(e.decCtx, e.decFrame); err != nil {
 				if errors.Is(err, ffmpeg.EAgain) || errors.Is(err, ffmpeg.AVErrorEOF) {
 					break
@@ -491,6 +510,14 @@ func (e *Encoder) flushEncoder(outStream *ffmpeg.AVStream) error {
 	}
 
 	return e.drainEncoder(outStream, "flush encoder receive failed")
+}
+
+// Cancel requests that a running Encode stop at the next loop iteration. It is
+// safe to call from another goroutine and returns immediately; Encode then
+// returns ErrCancelled once its current cgo call unwinds. Cancel does not free
+// any resources; the caller must still await Encode before calling Close.
+func (e *Encoder) Cancel() {
+	e.cancelled.Store(true)
 }
 
 // Close releases all resources
