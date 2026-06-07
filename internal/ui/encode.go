@@ -16,7 +16,6 @@ import (
 type ProgressUpdate struct {
 	SamplesProcessed int64
 	TotalSamples     int64
-	Err              error
 }
 
 // EncodingCompleteMsg signals that encoding has finished
@@ -146,12 +145,6 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.totalSamples = msg.TotalSamples
 		m.lastUpdateTime = time.Now()
 
-		if msg.Err != nil {
-			m.err = msg.Err
-			m.complete = true
-			return m, tea.Quit
-		}
-
 		return m, m.waitForProgress()
 
 	case frameTickMsg:
@@ -208,11 +201,6 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.anim.settleStart = time.Now()
 		m.anim.finalSpeed = m.calculateSpeed()
 		return m, m.tickFrame()
-
-	case error:
-		m.err = msg
-		m.complete = true
-		return m, tea.Quit
 	}
 
 	return m, nil
