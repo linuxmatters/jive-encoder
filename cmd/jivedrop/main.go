@@ -234,8 +234,6 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 		coverArtChan <- coverArtResult{data: artwork, err: artErr}
 	}()
 
-	fmt.Println()
-
 	// Drive the TUI only on a real terminal. Without a TTY the renderer is
 	// disabled so no ANSI box-drawing or cursor escapes reach the pipe.
 	isTTY := term.IsTerminal(os.Stdout.Fd())
