@@ -408,9 +408,9 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 			return fmt.Errorf("flush decoder receive failed: %w", err)
 		}
 
-		// Note: the decoder-flush feed keeps a ref (AVBuffersrcFlagKeepRef) while the
-		// filter-graph flush below passes 0. That divergence is intentional-until-reviewed
-		// and tracked separately; do not unify these flag values here.
+		// Keep a ref (AVBuffersrcFlagKeepRef) because we reuse e.decFrame each
+		// iteration and unref it ourselves below. The filter-graph flush feeds a
+		// nil frame, so KEEP_REF is inapplicable there and it passes 0.
 		if _, err := ffmpeg.AVBuffersrcAddFrameFlags(e.bufferSrcCtx, e.decFrame, ffmpeg.AVBuffersrcFlagKeepRef); err != nil {
 			return fmt.Errorf("failed to feed filter graph: %w", err)
 		}
