@@ -10,6 +10,13 @@ import (
 	"github.com/linuxmatters/jivedrop/internal/id3"
 )
 
+// Hugo mode metadata defaults for the Linux Matters podcast.
+const (
+	HugoDefaultArtist  = "Linux Matters"
+	HugoDefaultComment = "https://linuxmatters.sh"
+	HugoDefaultPrefix  = "LMP"
+)
+
 // HugoWorkflow implements the Workflow interface for Hugo mode.
 // It reads metadata from Hugo frontmatter and supports frontmatter updates after encoding.
 type HugoWorkflow struct {
@@ -125,6 +132,23 @@ func (h *HugoWorkflow) PostEncode(stats *encoder.FileStats) error {
 	}
 
 	return nil
+}
+
+// promptAndUpdateFrontmatter prompts the user and updates the frontmatter with podcast stats
+func promptAndUpdateFrontmatter(markdownPath, promptMsg, duration string, bytes int64) {
+	fmt.Print(promptMsg)
+	var response string
+	_, _ = fmt.Scanln(&response)
+
+	if strings.ToLower(strings.TrimSpace(response)) == "y" {
+		if err := encoder.UpdateFrontmatter(markdownPath, duration, bytes); err != nil {
+			cli.PrintError(fmt.Sprintf("Failed to update frontmatter: %v", err))
+		} else {
+			cli.PrintSuccess("Frontmatter updated successfully")
+		}
+	} else {
+		cli.PrintInfo("Frontmatter not updated")
+	}
 }
 
 // Ensure HugoWorkflow implements Workflow at compile time.

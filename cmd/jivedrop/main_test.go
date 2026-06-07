@@ -612,20 +612,7 @@ func TestDetectMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore global state
-			originalAudioFile := CLI.AudioFile
-			originalEpisodeMD := CLI.EpisodeMD
-			defer func() {
-				CLI.AudioFile = originalAudioFile
-				CLI.EpisodeMD = originalEpisodeMD
-			}()
-
-			// Set test values
-			CLI.AudioFile = tt.audioFile
-			CLI.EpisodeMD = tt.episodeMD
-
-			// Call detectMode
-			result := detectMode()
+			result := detectMode(tt.audioFile, tt.episodeMD)
 
 			// Verify result
 			if result != tt.expected {
@@ -677,20 +664,7 @@ func TestDetectMode_Integration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore global state
-			originalAudioFile := CLI.AudioFile
-			originalEpisodeMD := CLI.EpisodeMD
-			defer func() {
-				CLI.AudioFile = originalAudioFile
-				CLI.EpisodeMD = originalEpisodeMD
-			}()
-
-			// Set test values
-			CLI.AudioFile = tt.audioFile
-			CLI.EpisodeMD = tt.episodeMD
-
-			// Call detectMode
-			result := detectMode()
+			result := detectMode(tt.audioFile, tt.episodeMD)
 
 			// Verify result
 			if result != tt.expected {

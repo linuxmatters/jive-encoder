@@ -37,13 +37,6 @@ const (
 	StandaloneMode
 )
 
-// Hugo mode metadata defaults for the Linux Matters podcast.
-const (
-	HugoDefaultArtist  = "Linux Matters"
-	HugoDefaultComment = "https://linuxmatters.sh"
-	HugoDefaultPrefix  = "LMP"
-)
-
 var CLI struct {
 	AudioFile string `arg:"" name:"audio-file" help:"Path to audio file (WAV, FLAC)" optional:""`
 	EpisodeMD string `arg:"" name:"episode-md" help:"Path to episode markdown file (Hugo mode)" optional:""`
@@ -64,14 +57,14 @@ var CLI struct {
 }
 
 // detectMode determines if this is Hugo or Standalone workflow
-func detectMode() WorkflowMode {
+func detectMode(audioFile, episodeMD string) WorkflowMode {
 	// With no audio file the mode is irrelevant; run() shows help and exits.
-	if CLI.AudioFile == "" {
+	if audioFile == "" {
 		return HugoMode
 	}
 
 	// A .md second argument signals Hugo mode.
-	if CLI.EpisodeMD != "" && strings.HasSuffix(strings.ToLower(CLI.EpisodeMD), ".md") {
+	if episodeMD != "" && strings.HasSuffix(strings.ToLower(episodeMD), ".md") {
 		return HugoMode
 	}
 
@@ -150,23 +143,6 @@ func resolveOutputPath(mode WorkflowMode, num, artist, cliArtist, outputPath str
 	return outputPath, nil
 }
 
-// promptAndUpdateFrontmatter prompts the user and updates the frontmatter with podcast stats
-func promptAndUpdateFrontmatter(markdownPath, promptMsg, duration string, bytes int64) {
-	fmt.Print(promptMsg)
-	var response string
-	_, _ = fmt.Scanln(&response)
-
-	if strings.ToLower(strings.TrimSpace(response)) == "y" {
-		if err := encoder.UpdateFrontmatter(markdownPath, duration, bytes); err != nil {
-			cli.PrintError(fmt.Sprintf("Failed to update frontmatter: %v", err))
-		} else {
-			cli.PrintSuccess("Frontmatter updated successfully")
-		}
-	} else {
-		cli.PrintInfo("Frontmatter not updated")
-	}
-}
-
 // EncodeRequest carries everything the encode pipeline needs, sourced from the
 // CLI flags by the caller so encode itself reads no package-level state.
 type EncodeRequest struct {
@@ -179,14 +155,12 @@ type EncodeRequest struct {
 	Stereo       bool
 }
 
-// encode runs the full encoding pipeline: display info, create encoder, run
-// Bubbletea UI, process cover art concurrently, write ID3 tags, and extract
-// file statistics. Returns nil stats (with nil error) when stats extraction
-// fails but the MP3 was written successfully.
-func encode(req EncodeRequest) (*encoder.FileStats, error) {
-	tagInfo := req.TagInfo
+// printEncodePlan prints the pre-encode summary: the request metadata lines and
+// the encoder's resolved input-info line. enc must already be initialised, since
+// the input line reads enc.GetInputInfo().
+func printEncodePlan(req EncodeRequest, enc *encoder.Encoder) {
 	cli.PrintSuccessLabel("Ready to encode:", fmt.Sprintf("%s -> MP3", req.AudioFile))
-	cli.PrintLabelValue("• Episode:", fmt.Sprintf("%s - %s", tagInfo.EpisodeNumber, tagInfo.Title))
+	cli.PrintLabelValue("• Episode:", fmt.Sprintf("%s - %s", req.TagInfo.EpisodeNumber, req.TagInfo.Title))
 	if req.Mode == HugoMode {
 		cli.PrintLabelValue("• Episode markdown:", req.EpisodeMD)
 	}
@@ -197,39 +171,23 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 		cli.PrintLabelValue("• Encoding mode:", "Mono 112kbps")
 	}
 
-	enc, err := encoder.New(encoder.Config{
-		InputPath:  req.AudioFile,
-		OutputPath: req.OutputPath,
-		Stereo:     req.Stereo,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create encoder: %w", err)
-	}
-	defer enc.Close()
-
-	if err := enc.Initialize(); err != nil {
-		return nil, fmt.Errorf("failed to initialize encoder: %w", err)
-	}
-
 	sampleRate, channels, format := enc.GetInputInfo()
 	channelMode := encoder.FormatChannelMode(channels)
 	cli.PrintLabelValue("• Input:", fmt.Sprintf("%s %dHz %s", format, sampleRate, channelMode))
+}
 
-	outputBitrate := enc.Bitrate()
-	outputMode := enc.ChannelMode()
+// encodeOutcome reports how the Bubbletea encoding UI finished. err is non-nil
+// when the run failed; partialFile is true when that failure left a truncated
+// MP3 that the caller must discard (cancel or encode error, but not a UI error).
+type encodeOutcome struct {
+	err         error
+	partialFile bool
+}
 
-	// Process cover art concurrently so scaling overlaps the encode.
-	coverArtChan := make(chan coverArtResult, 1)
-	go func() {
-		if req.CoverArtPath == "" {
-			coverArtChan <- coverArtResult{data: nil, err: nil}
-			return
-		}
-
-		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath)
-		coverArtChan <- coverArtResult{data: artwork, err: artErr}
-	}()
-
+// runEncodeUI drives the Bubbletea encoding UI to completion. It detects a TTY,
+// builds the matching program, runs it, and reports the resolved outcome. The
+// caller owns partial-file cleanup, guided by outcome.partialFile.
+func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) encodeOutcome {
 	// Drive the TUI only on a real terminal. Without a TTY the renderer is
 	// disabled so no ANSI box-drawing or cursor escapes reach the pipe.
 	isTTY := term.IsTerminal(os.Stdout.Fd())
@@ -245,32 +203,40 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 
 	finalModel, err := p.Run()
 	if err != nil {
-		return nil, fmt.Errorf("UI error: %w", err)
+		// A UI failure leaves no truncated MP3 to discard.
+		return encodeOutcome{err: fmt.Errorf("UI error: %w", err)}
 	}
 
 	if encModel, ok := finalModel.(*ui.EncodeModel); ok {
 		if encModel.Cancelled() {
 			// User interrupted with Ctrl+C. Encode has already returned (the model
-			// quits only after EncodingCompleteMsg), so the deferred Close below is
-			// safe. Discard the truncated MP3 and report the interrupt.
-			os.Remove(req.OutputPath)
-			return nil, fmt.Errorf("encoding cancelled")
+			// quits only after EncodingCompleteMsg), so the caller's deferred Close
+			// is safe. Report the interrupt; the caller discards the truncated MP3.
+			return encodeOutcome{err: fmt.Errorf("encoding cancelled"), partialFile: true}
 		}
 		if encModel.Error() != nil {
-			// Discard the truncated MP3 so a failed run leaves no partial file.
-			os.Remove(req.OutputPath)
-			return nil, fmt.Errorf("encoding failed: %w", encModel.Error())
+			return encodeOutcome{err: fmt.Errorf("encoding failed: %w", encModel.Error()), partialFile: true}
 		}
 	}
 
 	// tea.Printf/Println no-op under WithoutRenderer, so emit the encode-stage
 	// line directly from here when running without a TTY. This mirrors the TTY
 	// completeView (which reports the encode finishing, not the whole job);
-	// cover-art and ID3 work still follow, and PrintSuccessLabel below marks
-	// the final artefact on success.
+	// cover-art and ID3 work still follow, and the final-artefact line marks
+	// success.
 	if !isTTY {
 		fmt.Println("Audio encoded, embedding metadata...")
 	}
+
+	return encodeOutcome{}
+}
+
+// embedMetadata finishes the job after a successful encode: receive the
+// concurrently scaled cover art, write ID3 tags, and extract file statistics.
+// Returns nil stats (with nil error) when stats extraction fails but the MP3 was
+// written successfully.
+func embedMetadata(req EncodeRequest, enc *encoder.Encoder, coverArtChan <-chan coverArtResult) (*encoder.FileStats, error) {
+	tagInfo := req.TagInfo
 
 	coverResult := <-coverArtChan
 	if coverResult.err != nil {
@@ -299,6 +265,53 @@ func encode(req EncodeRequest) (*encoder.FileStats, error) {
 	return stats, nil
 }
 
+// encode orchestrates the full encoding pipeline: print the plan, create and
+// initialise the encoder, scale cover art concurrently, run the Bubbletea UI,
+// handle the outcome, then embed metadata and extract statistics. Returns nil
+// stats (with nil error) when stats extraction fails but the MP3 was written
+// successfully.
+func encode(req EncodeRequest) (*encoder.FileStats, error) {
+	enc, err := encoder.New(encoder.Config{
+		InputPath:  req.AudioFile,
+		OutputPath: req.OutputPath,
+		Stereo:     req.Stereo,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create encoder: %w", err)
+	}
+	defer enc.Close()
+
+	if err := enc.Initialize(); err != nil {
+		return nil, fmt.Errorf("failed to initialize encoder: %w", err)
+	}
+
+	printEncodePlan(req, enc)
+
+	// Process cover art concurrently so scaling overlaps the encode.
+	coverArtChan := make(chan coverArtResult, 1)
+	go func() {
+		if req.CoverArtPath == "" {
+			coverArtChan <- coverArtResult{data: nil, err: nil}
+			return
+		}
+
+		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath)
+		coverArtChan <- coverArtResult{data: artwork, err: artErr}
+	}()
+
+	outcome := runEncodeUI(enc, enc.ChannelMode(), enc.Bitrate())
+	if outcome.err != nil {
+		if outcome.partialFile {
+			// Discard the truncated MP3 so a cancelled or failed run leaves no
+			// partial file.
+			os.Remove(req.OutputPath)
+		}
+		return nil, outcome.err
+	}
+
+	return embedMetadata(req, enc, coverArtChan)
+}
+
 func main() {
 	os.Exit(run())
 }
@@ -322,7 +335,7 @@ func run() int {
 		return 0
 	}
 
-	mode := detectMode()
+	mode := detectMode(CLI.AudioFile, CLI.EpisodeMD)
 	opts := CLIOptions{
 		EpisodeMD: CLI.EpisodeMD,
 		Num:       CLI.Num,
