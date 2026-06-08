@@ -9,12 +9,10 @@ import (
 )
 
 func TestWriteTags(t *testing.T) {
-	// Create a minimal valid MP3 file for testing
 	tmpDir := t.TempDir()
 	mp3Path := filepath.Join(tmpDir, "test.mp3")
 
-	// Copy test MP3 from testdata
-	// The MP3 is created by encoder integration tests if it doesn't exist
+	// Reuse the MP3 produced by the encoder integration tests; skip if absent.
 	testMP3 := "../../testdata/LMP0.mp3"
 	input, err := os.ReadFile(testMP3)
 	if err != nil {
@@ -24,7 +22,6 @@ func TestWriteTags(t *testing.T) {
 		t.Fatalf("Failed to create test MP3: %v", err)
 	}
 
-	// Test tag info
 	info := TagInfo{
 		EpisodeNumber: "67",
 		Title:         "Mirrors, Motors and Makefiles",
@@ -34,13 +31,11 @@ func TestWriteTags(t *testing.T) {
 		Comment:       "https://linuxmatters.sh/",
 	}
 
-	// Write tags
 	err = WriteTags(mp3Path, info)
 	if err != nil {
 		t.Fatalf("WriteTags failed: %v", err)
 	}
 
-	// Verify tags were written correctly
 	tag, err := id3v2.Open(mp3Path, id3v2.Options{Parse: true})
 	if err != nil {
 		t.Fatalf("Failed to open MP3 for verification: %v", err)
@@ -94,7 +89,6 @@ func TestWriteTags_WithDate(t *testing.T) {
 	tmpDir := t.TempDir()
 	mp3Path := filepath.Join(tmpDir, "test.mp3")
 
-	// Copy test MP3
 	testMP3 := "../../testdata/LMP0.mp3"
 	input, err := os.ReadFile(testMP3)
 	if err != nil {
@@ -132,7 +126,6 @@ func TestWriteTags_WithCoverArt(t *testing.T) {
 	tmpDir := t.TempDir()
 	mp3Path := filepath.Join(tmpDir, "test.mp3")
 
-	// Copy test MP3 from testdata
 	testMP3 := "../../testdata/LMP0.mp3"
 	input, err := os.ReadFile(testMP3)
 	if err != nil {
@@ -148,13 +141,11 @@ func TestWriteTags_WithCoverArt(t *testing.T) {
 		t.Skipf("Test cover art not found at %s", coverArtPath)
 	}
 
-	// Pre-process cover art
 	coverArtData, err := ScaleCoverArt(coverArtPath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
 
-	// Create tag info with cover art
 	info := TagInfo{
 		EpisodeNumber: "67",
 		Title:         "Mirrors, Motors and Makefiles",
@@ -165,13 +156,11 @@ func TestWriteTags_WithCoverArt(t *testing.T) {
 		CoverArtData:  coverArtData,
 	}
 
-	// Write tags with cover art
 	err = WriteTags(mp3Path, info)
 	if err != nil {
 		t.Fatalf("WriteTags with cover art failed: %v", err)
 	}
 
-	// Verify tags and cover art were written
 	tag, err := id3v2.Open(mp3Path, id3v2.Options{Parse: true})
 	if err != nil {
 		t.Fatalf("Failed to open MP3 for verification: %v", err)
@@ -221,7 +210,6 @@ func TestWriteTags_WithCoverArt_InvalidPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	mp3Path := filepath.Join(tmpDir, "test.mp3")
 
-	// Copy test MP3 from testdata
 	testMP3 := "../../testdata/LMP0.mp3"
 	input, err := os.ReadFile(testMP3)
 	if err != nil {
@@ -243,7 +231,6 @@ func TestWriteTags_WithCoverArt_AllMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
 	mp3Path := filepath.Join(tmpDir, "test.mp3")
 
-	// Copy test MP3 from testdata
 	testMP3 := "../../testdata/LMP0.mp3"
 	input, err := os.ReadFile(testMP3)
 	if err != nil {
@@ -253,19 +240,16 @@ func TestWriteTags_WithCoverArt_AllMetadata(t *testing.T) {
 		t.Fatalf("Failed to create test MP3: %v", err)
 	}
 
-	// Get cover art path
 	coverArtPath := "../../testdata/linuxmatters-3000x3000.png"
 	if _, err := os.Stat(coverArtPath); err != nil {
 		t.Skipf("Test cover art not found")
 	}
 
-	// Pre-process cover art
 	coverArtData, err := ScaleCoverArt(coverArtPath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}
 
-	// Create comprehensive tag info
 	info := TagInfo{
 		EpisodeNumber: "42",
 		Title:         "The Quest Begins",
@@ -276,13 +260,11 @@ func TestWriteTags_WithCoverArt_AllMetadata(t *testing.T) {
 		CoverArtData:  coverArtData,
 	}
 
-	// Write all tags
 	err = WriteTags(mp3Path, info)
 	if err != nil {
 		t.Fatalf("WriteTags failed: %v", err)
 	}
 
-	// Verify all tags including cover art
 	tag, err := id3v2.Open(mp3Path, id3v2.Options{Parse: true})
 	if err != nil {
 		t.Fatalf("Failed to open MP3: %v", err)
@@ -359,7 +341,6 @@ func TestWriteTags_CoverArt_NoOtherMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
 	mp3Path := filepath.Join(tmpDir, "test.mp3")
 
-	// Copy test MP3
 	testMP3 := "../../testdata/LMP0.mp3"
 	input, err := os.ReadFile(testMP3)
 	if err != nil {
@@ -369,13 +350,11 @@ func TestWriteTags_CoverArt_NoOtherMetadata(t *testing.T) {
 		t.Fatalf("Failed to create test MP3: %v", err)
 	}
 
-	// Get cover art
 	coverArtPath := "../../testdata/linuxmatters-3000x3000.png"
 	if _, err := os.Stat(coverArtPath); err != nil {
 		t.Skipf("Test cover art not found")
 	}
 
-	// Pre-process cover art
 	coverArtData, err := ScaleCoverArt(coverArtPath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
@@ -388,13 +367,11 @@ func TestWriteTags_CoverArt_NoOtherMetadata(t *testing.T) {
 		CoverArtData:  coverArtData,
 	}
 
-	// Write tags
 	err = WriteTags(mp3Path, info)
 	if err != nil {
 		t.Fatalf("WriteTags failed: %v", err)
 	}
 
-	// Verify minimal tags and cover art
 	tag, err := id3v2.Open(mp3Path, id3v2.Options{Parse: true})
 	if err != nil {
 		t.Fatalf("Failed to open MP3: %v", err)

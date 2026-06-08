@@ -164,7 +164,6 @@ func TestHugoWorkflowValidate(t *testing.T) {
 			}}
 			err := wf.Validate()
 
-			// Check error expectations
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("HugoWorkflow.Validate() expected error, got nil (EpisodeMD=%q)", tt.episodeMD)
@@ -247,7 +246,6 @@ func TestHugoWorkflowValidate_Integration(t *testing.T) {
 			}}
 			err := wf.Validate()
 
-			// Check error expectations
 			if tt.wantErr && err == nil {
 				t.Errorf("HugoWorkflow.Validate() expected error but got nil\n  Description: %s\n  EpisodeMD=%q",
 					tt.description, tt.episodeMD)

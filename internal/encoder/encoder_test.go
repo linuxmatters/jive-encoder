@@ -12,19 +12,15 @@ import (
 // the full encoding pipeline works and creates a test MP3 file that
 // other tests can use for validation.
 func TestEncodeToMP3_Integration(t *testing.T) {
-	// Use testdata/LMP0.flac as input
 	inputPath := "../../testdata/LMP0.flac"
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		t.Skipf("Test file not found: %s", inputPath)
 	}
 
-	// Output to testdata/LMP0.mp3 (not tracked in git)
 	outputPath := "../../testdata/LMP0.mp3"
 
-	// Note: We don't defer cleanup of this file - it's used by other tests
-	// and is already in .gitignore
+	// Not cleaned up: other tests reuse this MP3, and it is already gitignored.
 
-	// Test mono encoding (default)
 	t.Run("mono encoding", func(t *testing.T) {
 		enc, err := New(Config{
 			InputPath:  inputPath,
@@ -40,19 +36,17 @@ func TestEncodeToMP3_Integration(t *testing.T) {
 			t.Fatalf("Failed to initialize encoder: %v", err)
 		}
 
-		// Encode with nil progress callback for tests
 		err = enc.Encode(nil)
 		if err != nil {
 			t.Fatalf("Encode failed: %v", err)
 		}
 
-		// Verify output file exists
 		info, err := os.Stat(outputPath)
 		if err != nil {
 			t.Fatalf("Output file not created: %v", err)
 		}
 
-		// Verify output file has reasonable size (should be > 1KB for a real audio file)
+		// A real audio file should exceed 1KB; a smaller output signals a broken encode.
 		if info.Size() < 1024 {
 			t.Errorf("Output file too small: %d bytes", info.Size())
 		}
@@ -60,7 +54,6 @@ func TestEncodeToMP3_Integration(t *testing.T) {
 		t.Logf("Created MP3: %s (%d bytes)", outputPath, info.Size())
 	})
 
-	// Test stereo encoding
 	t.Run("stereo encoding", func(t *testing.T) {
 		stereoOutput := "../../testdata/LMP0-stereo.mp3"
 		defer os.Remove(stereoOutput)
@@ -84,7 +77,6 @@ func TestEncodeToMP3_Integration(t *testing.T) {
 			t.Fatalf("Encode (stereo) failed: %v", err)
 		}
 
-		// Verify output exists
 		info, err := os.Stat(stereoOutput)
 		if err != nil {
 			t.Fatalf("Stereo output file not created: %v", err)
@@ -134,7 +126,6 @@ func TestEncoder_InvalidInput(t *testing.T) {
 				OutputPath: tt.outputPath,
 				Stereo:     false,
 			})
-			// Check for immediate config errors
 			if err != nil {
 				if !tt.wantErr {
 					t.Errorf("Unexpected error during New: %v", err)
@@ -143,7 +134,6 @@ func TestEncoder_InvalidInput(t *testing.T) {
 			}
 			defer enc.Close()
 
-			// Check for initialization errors
 			err = enc.Initialize()
 			if tt.wantErr && err == nil {
 				t.Error("Expected error during Initialize, got nil")
@@ -165,7 +155,6 @@ func TestEncoder_OutputExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputPath := filepath.Join(tmpDir, "test.mp3")
 
-	// Create initial encoding
 	enc1, err := New(Config{
 		InputPath:  inputPath,
 		OutputPath: outputPath,
@@ -184,7 +173,6 @@ func TestEncoder_OutputExists(t *testing.T) {
 		t.Fatalf("Initial encoding failed: %v", err)
 	}
 
-	// Get initial file info
 	initialInfo, err := os.Stat(outputPath)
 	if err != nil {
 		t.Fatalf("Failed to stat initial output: %v", err)
@@ -209,7 +197,6 @@ func TestEncoder_OutputExists(t *testing.T) {
 		t.Fatalf("Second encoding failed: %v", err)
 	}
 
-	// Verify file was overwritten
 	newInfo, err := os.Stat(outputPath)
 	if err != nil {
 		t.Fatalf("Failed to stat new output: %v", err)
@@ -316,7 +303,6 @@ func TestEncoder_ProgressCallback(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputPath := filepath.Join(tmpDir, "test.mp3")
 
-	// Create and initialize encoder
 	enc, err := New(Config{
 		InputPath:  inputPath,
 		OutputPath: outputPath,
@@ -331,13 +317,11 @@ func TestEncoder_ProgressCallback(t *testing.T) {
 		t.Fatalf("Failed to initialize encoder: %v", err)
 	}
 
-	// Get total samples from encoder state
 	totalSamples := enc.totalSamples
 	if totalSamples == 0 {
 		t.Skip("Could not determine total samples from input file")
 	}
 
-	// Track all progress updates
 	var progressUpdates []struct {
 		samplesProcessed int64
 		totalSamples     int64
@@ -353,7 +337,6 @@ func TestEncoder_ProgressCallback(t *testing.T) {
 		}{samplesProcessed, totalSamples})
 	}
 
-	// Encode with progress callback
 	if err := enc.Encode(progressCb); err != nil {
 		t.Fatalf("Encoding failed: %v", err)
 	}
@@ -362,7 +345,6 @@ func TestEncoder_ProgressCallback(t *testing.T) {
 		t.Skip("No progress updates received (file may be too small)")
 	}
 
-	// Verify output file was created
 	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
 		t.Fatalf("Output file not created: %v", err)
 	}
@@ -528,7 +510,6 @@ func TestEncoder_GetDurationSecs(t *testing.T) {
 		t.Errorf("GetDurationSecs before Encode: got %d, want 0", dur)
 	}
 
-	// Encode the file
 	if err := enc.Encode(nil); err != nil {
 		t.Fatalf("Encoding failed: %v", err)
 	}

@@ -425,7 +425,6 @@ func TestResolveOutputPath(t *testing.T) {
 				return
 			}
 
-			// Check if result contains expected path component
 			if tt.wantPath != "" && !isPathMatch(result, tt.wantPath) {
 				t.Errorf("resolveOutputPath() = %q; want path containing %q", result, tt.wantPath)
 			}
@@ -438,12 +437,10 @@ func TestResolveOutputPath_FileOverwrite(t *testing.T) {
 	tmpDir := t.TempDir()
 	existingFile := filepath.Join(tmpDir, "existing.mp3")
 
-	// Create an existing file
 	if err := os.WriteFile(existingFile, []byte("dummy"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Resolve the same path again
 	result, err := resolveOutputPath(HugoMode, "1", "", "", existingFile)
 	if err != nil {
 		t.Errorf("resolveOutputPath() with existing file: got unexpected error: %v", err)
@@ -463,7 +460,6 @@ func TestResolveOutputPath_GeneratedFilenameInTempDir(t *testing.T) {
 		t.Errorf("resolveOutputPath() unexpected error: %v", err)
 	}
 
-	// Verify result is in the temp directory and has correct filename
 	rel, relErr := filepath.Rel(tmpDir, result)
 	if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		t.Errorf("resolveOutputPath() = %q; not in temp directory %q", result, tmpDir)
@@ -614,7 +610,6 @@ func TestDetectMode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := detectMode(tt.audioFile, tt.episodeMD)
 
-			// Verify result
 			if result != tt.expected {
 				t.Errorf("detectMode() = %v; want %v (AudioFile=%q, EpisodeMD=%q)",
 					result, tt.expected, tt.audioFile, tt.episodeMD)
@@ -666,7 +661,6 @@ func TestDetectMode_Integration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := detectMode(tt.audioFile, tt.episodeMD)
 
-			// Verify result
 			if result != tt.expected {
 				t.Errorf("detectMode() = %v; want %v\n  Description: %s\n  AudioFile=%q, EpisodeMD=%q",
 					result, tt.expected, tt.description, tt.audioFile, tt.episodeMD)

@@ -33,7 +33,6 @@ func TestFormatDurationHMS(t *testing.T) {
 func TestGetFileStats(t *testing.T) {
 	testFile := "../../testdata/LMP0.mp3"
 
-	// Skip if test file doesn't exist
 	if _, err := os.Stat(testFile); os.IsNotExist(err) {
 		t.Skip("Test MP3 file not found - run tests to generate it via TestEncodeToMP3_Integration")
 	}

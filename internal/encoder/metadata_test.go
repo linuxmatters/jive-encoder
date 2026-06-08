@@ -95,17 +95,14 @@ No closing delimiter
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary test file
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "test.md")
 			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
 				t.Fatalf("Failed to create test file: %v", err)
 			}
 
-			// Parse the metadata
 			meta, err := ParseEpisodeMetadata(tmpFile)
 
-			// Check error expectations
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error containing '%s', got nil", tt.errContains)
@@ -117,7 +114,6 @@ No closing delimiter
 				return
 			}
 
-			// Check success expectations
 			if err != nil {
 				t.Errorf("Unexpected error: %v", err)
 				return
@@ -154,7 +150,6 @@ Episode content.
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// Verify all fields
 	if meta.Episode != "67" {
 		t.Errorf("Expected episode '67', got '%s'", meta.Episode)
 	}
@@ -224,13 +219,11 @@ More content.
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Update frontmatter with both fields missing
 	err := UpdateFrontmatter(tmpFile, "01:23:45", 5555555)
 	if err != nil {
 		t.Fatalf("UpdateFrontmatter failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -304,13 +297,11 @@ Episode content.
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Update with new values
 	err := UpdateFrontmatter(tmpFile, "01:23:45", 5555555)
 	if err != nil {
 		t.Fatalf("UpdateFrontmatter failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -354,13 +345,11 @@ Episode content.
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Update - should update duration and insert bytes
 	err := UpdateFrontmatter(tmpFile, "00:15:00", 3333333)
 	if err != nil {
 		t.Fatalf("UpdateFrontmatter failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -399,13 +388,11 @@ Episode content.
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	// Update frontmatter
 	err := UpdateFrontmatter(tmpFile, "00:20:00", 4444444)
 	if err != nil {
 		t.Fatalf("UpdateFrontmatter failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -513,7 +500,6 @@ Episode content.
 		t.Fatalf("UpdateFrontmatter with large size failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -553,7 +539,6 @@ Episode content.
 		t.Fatalf("UpdateFrontmatter with zero values failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -589,7 +574,6 @@ episode_image: "/img/test.png"
 		t.Fatalf("UpdateFrontmatter failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -633,7 +617,6 @@ Episode content.
 		t.Fatalf("UpdateFrontmatter failed: %v", err)
 	}
 
-	// Read the updated file
 	updated, err := os.ReadFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to read updated file: %v", err)
@@ -682,7 +665,6 @@ episode_image: "./images/cover.png"
 		t.Fatalf("Failed to create markdown file: %v", err)
 	}
 
-	// Test resolution
 	resolved, err := ResolveCoverArtPath(markdownPath, "./images/cover.png")
 	if err != nil {
 		t.Fatalf("ResolveCoverArtPath failed: %v", err)
@@ -725,7 +707,6 @@ episode_image: "./cover.png"
 		t.Fatalf("Failed to create markdown file: %v", err)
 	}
 
-	// Test resolution - ./ prefix means relative to markdown location
 	resolved, err := ResolveCoverArtPath(markdownPath, "./cover.png")
 	if err != nil {
 		t.Fatalf("ResolveCoverArtPath failed: %v", err)
@@ -772,7 +753,6 @@ episode_image: "/img/cover.png"
 		t.Fatalf("Failed to create markdown file: %v", err)
 	}
 
-	// Test resolution - should walk up from content/episodes to find static/
 	resolved, err := ResolveCoverArtPath(markdownPath, "/img/cover.png")
 	if err != nil {
 		t.Fatalf("ResolveCoverArtPath failed: %v", err)
@@ -817,7 +797,6 @@ episode_image: "/media/podcasts/cover.png"
 		t.Fatalf("Failed to create markdown file: %v", err)
 	}
 
-	// Test resolution
 	resolved, err := ResolveCoverArtPath(markdownPath, "/media/podcasts/cover.png")
 	if err != nil {
 		t.Fatalf("ResolveCoverArtPath failed: %v", err)
@@ -844,7 +823,6 @@ episode_image: "./missing.png"
 		t.Fatalf("Failed to create markdown file: %v", err)
 	}
 
-	// Test resolution - should fail
 	_, err := ResolveCoverArtPath(markdownPath, "./missing.png")
 	if err == nil {
 		t.Error("Expected error for missing file, got nil")
@@ -875,7 +853,6 @@ episode_image: "/img/missing.png"
 		t.Fatalf("Failed to create markdown file: %v", err)
 	}
 
-	// Test resolution - should fail
 	_, err := ResolveCoverArtPath(markdownPath, "/img/missing.png")
 	if err == nil {
 		t.Error("Expected error for missing file, got nil")
@@ -901,7 +878,6 @@ episode_image: "/img/cover.png"
 		t.Fatalf("Failed to create markdown file: %v", err)
 	}
 
-	// Test resolution - should fail
 	_, err := ResolveCoverArtPath(markdownPath, "/img/cover.png")
 	if err == nil {
 		t.Error("Expected error for missing project root, got nil")

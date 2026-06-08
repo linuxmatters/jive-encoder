@@ -65,16 +65,13 @@ func TestScaleCoverArt_ValidSquareImage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary test image
 			tmpDir := t.TempDir()
 			testImagePath := filepath.Join(tmpDir, "test.png")
 
-			// Create a square PNG image of the specified size
 			if err := createTestPNG(testImagePath, tt.size, tt.size); err != nil {
 				t.Fatalf("Failed to create test PNG: %v", err)
 			}
 
-			// Scale the image
 			scaledData, err := ScaleCoverArt(testImagePath)
 			if err != nil {
 				t.Fatalf("ScaleCoverArt failed: %v", err)
@@ -151,12 +148,10 @@ func TestScaleCoverArt_NonSquareImage(t *testing.T) {
 			tmpDir := t.TempDir()
 			testImagePath := filepath.Join(tmpDir, "test.png")
 
-			// Create a non-square PNG image
 			if err := createTestPNG(testImagePath, tt.width, tt.height); err != nil {
 				t.Fatalf("Failed to create test PNG: %v", err)
 			}
 
-			// Attempt to scale
 			_, err := ScaleCoverArt(testImagePath)
 
 			if !tt.wantErr && err != nil {
@@ -190,7 +185,6 @@ func TestScaleCoverArt_CorruptFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	corruptPath := filepath.Join(tmpDir, "corrupt.png")
 
-	// Write corrupt PNG data
 	corruptData := []byte{0x89, 0x50, 0x4E, 0x47} // PNG magic but incomplete
 	if err := os.WriteFile(corruptPath, corruptData, 0o644); err != nil {
 		t.Fatalf("Failed to create corrupt file: %v", err)
@@ -211,7 +205,6 @@ func TestScaleCoverArt_TextFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	textPath := filepath.Join(tmpDir, "notanimage.txt")
 
-	// Write text file
 	if err := os.WriteFile(textPath, []byte("This is not an image"), 0o644); err != nil {
 		t.Fatalf("Failed to create text file: %v", err)
 	}
@@ -228,15 +221,12 @@ func TestScaleCoverArt_TextFile(t *testing.T) {
 
 // TestScaleCoverArt_RealImageFile tests with actual test data
 func TestScaleCoverArt_RealImageFile(t *testing.T) {
-	// Use the real test image from testdata
 	testImagePath := "../../testdata/linuxmatters-3000x3000.png"
 
-	// Skip if test image doesn't exist
 	if _, err := os.Stat(testImagePath); os.IsNotExist(err) {
 		t.Skipf("Test image not found at %s", testImagePath)
 	}
 
-	// Scale the real image
 	scaledData, err := ScaleCoverArt(testImagePath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
@@ -276,7 +266,6 @@ func TestScaleCoverArt_OutputIsPNG(t *testing.T) {
 	tmpDir := t.TempDir()
 	testImagePath := filepath.Join(tmpDir, "test.png")
 
-	// Create a square PNG
 	if err := createTestPNG(testImagePath, 1000, 1000); err != nil {
 		t.Fatalf("Failed to create test PNG: %v", err)
 	}
@@ -310,14 +299,12 @@ func TestScaleCoverArt_SkipPNGReencoding(t *testing.T) {
 		t.Fatalf("Failed to create test PNG: %v", err)
 	}
 
-	// Read original PNG file size
 	originalInfo, err := os.Stat(testImagePath)
 	if err != nil {
 		t.Fatalf("Failed to stat original file: %v", err)
 	}
 	originalSize := originalInfo.Size()
 
-	// Process with ScaleCoverArt
 	scaledData, err := ScaleCoverArt(testImagePath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
@@ -488,7 +475,6 @@ func createTestPNG(path string, width, height int) error {
 	// Fill with a gradient pattern for visual distinctiveness
 	for y := range height {
 		for x := range width {
-			// Create a simple gradient pattern
 			r := uint8((x * 255) / width)                  //nolint:gosec // test code, values bounded by image dimensions
 			g := uint8((y * 255) / height)                 //nolint:gosec // test code, values bounded by image dimensions
 			b := uint8(((x + y) * 255) / (width + height)) //nolint:gosec // test code, values bounded by image dimensions

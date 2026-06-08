@@ -225,7 +225,6 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 			}}
 			err := wf.Validate()
 
-			// Check error expectations
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("StandaloneWorkflow.Validate() expected error, got nil\n  Title=%q, Num=%q, Cover=%q",
@@ -336,7 +335,6 @@ func TestStandaloneWorkflowValidate_Integration(t *testing.T) {
 			}}
 			err := wf.Validate()
 
-			// Check error expectations
 			if tt.wantErr && err == nil {
 				t.Errorf("StandaloneWorkflow.Validate() expected error but got nil\n  Description: %s\n  Title=%q, Num=%q, Cover=%q",
 					tt.description, tt.title, tt.num, tt.cover)
