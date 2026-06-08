@@ -62,7 +62,7 @@ Require ./jivedrop
 Set Shell "fish"
 Set FontSize 13
 Set Width 640
-Set Height 420
+Set Height 480
 Set Padding 8
 Set WindowBar ColorfulRight
 Set WindowBarSize 32
@@ -71,5 +71,8 @@ Set Theme catppuccin-mocha
 
 Type "./jivedrop testdata/LMP67.flac testdata/67.md" Sleep 250ms  Enter
 Sleep 4s
+#Type "./jivedrop testdata/LMP80.flac testdata/80.md" Sleep 250ms  Enter
+#Sleep 10s
+
 Type "n" Sleep 250ms  Enter
 Sleep 4s
