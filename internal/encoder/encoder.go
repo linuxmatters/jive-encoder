@@ -1,9 +1,12 @@
 package encoder
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"image/png"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/linuxmatters/ffmpeg-statigo"
 )
@@ -38,22 +41,44 @@ type Encoder struct {
 	bufferSinkCtx *ffmpeg.AVFilterContext
 	filteredFrame *ffmpeg.AVFrame
 
-	streamIndex  int
-	samplesRead  int64
-	totalSamples int64
-	nextPts      int64 // Track PTS for output frames
-	closed       bool  // Track if Close() has been called to prevent double-free
+	preset   formatPreset
+	metadata Metadata
+	coverArt []byte // scaled PNG cover bytes; empty disables the attached-picture stream
+
+	streamIndex      int
+	outStreamIndex   int // OUTPUT audio stream index, distinct from input streamIndex
+	coverStreamIndex int // attached-picture stream index, -1 when no cover stream
+	samplesRead      int64
+	totalSamples     int64
+	nextPts          int64 // Track PTS for output frames
+	closed           bool  // Track if Close() has been called to prevent double-free
 
 	// cancelled is set by Cancel and observed at the top of the decode loop so
 	// Encode unwinds the cgo call chain before any Close frees the AV contexts.
 	cancelled atomic.Bool
 }
 
+// Metadata carries episode tag fields into the encoder so it can write
+// muxer-native metadata during Initialize/Encode. It mirrors the text fields of
+// the id3 tag set but lives in the encoder package to avoid an encoder->id3
+// import cycle (id3 is being removed).
+type Metadata struct {
+	EpisodeNumber string
+	Title         string
+	Artist        string
+	Album         string
+	Date          string
+	Comment       string
+}
+
 // Config holds encoder configuration
 type Config struct {
 	InputPath  string
 	OutputPath string
-	Stereo     bool // true = 192kbps stereo, false = 112kbps mono
+	Stereo     bool     // true = 192kbps stereo, false = 112kbps mono
+	Format     string   // output format (mp3, aac, opus); defaults to mp3 when empty
+	Metadata   Metadata // episode tag fields written as muxer-native metadata
+	CoverArt   []byte   // scaled PNG cover bytes; embedded as an attached picture for cover-capable formats
 }
 
 // New creates a new encoder instance
@@ -65,11 +90,25 @@ func New(cfg Config) (*Encoder, error) {
 		return nil, fmt.Errorf("output path is required")
 	}
 
+	format := cfg.Format
+	if format == "" {
+		format = "mp3"
+	}
+	preset, ok := presetFor(format)
+	if !ok {
+		return nil, fmt.Errorf("unknown output format: %q", format)
+	}
+
 	return &Encoder{
-		inputPath:   cfg.InputPath,
-		outputPath:  cfg.OutputPath,
-		stereo:      cfg.Stereo,
-		streamIndex: -1,
+		inputPath:        cfg.InputPath,
+		outputPath:       cfg.OutputPath,
+		stereo:           cfg.Stereo,
+		preset:           preset,
+		metadata:         cfg.Metadata,
+		coverArt:         cfg.CoverArt,
+		streamIndex:      -1,
+		outStreamIndex:   -1,
+		coverStreamIndex: -1,
 	}, nil
 }
 
@@ -158,15 +197,24 @@ func (e *Encoder) openOutput() error {
 		return fmt.Errorf("failed to create output context: %w", err)
 	}
 
-	encoder := ffmpeg.AVCodecFindEncoder(ffmpeg.AVCodecIdMp3)
+	var encoder *ffmpeg.AVCodec
+	if e.preset.encoderName != "" {
+		namePtr := ffmpeg.ToCStr(e.preset.encoderName)
+		encoder = ffmpeg.AVCodecFindEncoderByName(namePtr)
+		namePtr.Free()
+	}
 	if encoder == nil {
-		return fmt.Errorf("MP3 encoder not found")
+		encoder = ffmpeg.AVCodecFindEncoder(e.preset.codecID)
+	}
+	if encoder == nil {
+		return fmt.Errorf("%s encoder not found", e.preset.name)
 	}
 
 	outStream := ffmpeg.AVFormatNewStream(e.ofmtCtx, encoder)
 	if outStream == nil {
 		return fmt.Errorf("failed to create output stream")
 	}
+	e.outStreamIndex = outStream.Index()
 
 	e.encCtx = ffmpeg.AVCodecAllocContext3(encoder)
 	if e.encCtx == nil {
@@ -174,39 +222,34 @@ func (e *Encoder) openOutput() error {
 	}
 
 	if e.stereo {
-		e.encCtx.SetBitRate(StereoBitrate)
+		e.encCtx.SetBitRate(int64(e.preset.stereoBitrate))
 		ffmpeg.AVChannelLayoutDefault(e.encCtx.ChLayout(), 2)
 	} else {
-		e.encCtx.SetBitRate(MonoBitrate)
+		e.encCtx.SetBitRate(int64(e.preset.monoBitrate))
 		ffmpeg.AVChannelLayoutDefault(e.encCtx.ChLayout(), 1)
 	}
 
-	e.encCtx.SetSampleRate(44100)
-	e.encCtx.SetSampleFmt(ffmpeg.AVSampleFmtS16P) // Signed 16-bit planar
+	e.encCtx.SetSampleRate(e.preset.sampleRate)
+	e.encCtx.SetSampleFmt(e.preset.sampleFmt)
 
 	tb := &ffmpeg.AVRational{}
 	tb.SetNum(1)
 	tb.SetDen(e.encCtx.SampleRate())
 	e.encCtx.SetTimeBase(tb)
 
-	// LAME tuning passed through AVDictionary.
+	// Encoder tuning passed through AVDictionary, driven by the preset.
 	var opts *ffmpeg.AVDictionary
 
-	keyComp := ffmpeg.ToCStr("compression_level")
-	defer keyComp.Free()
-	valComp := ffmpeg.ToCStr("3") // LAME quality preset -q 3
-	defer valComp.Free()
-	if _, err := ffmpeg.AVDictSet(&opts, keyComp, valComp, 0); err != nil {
-		return fmt.Errorf("failed to set compression_level: %w", err)
-	}
-
-	keyCutoff := ffmpeg.ToCStr("cutoff")
-	defer keyCutoff.Free()
-	valCutoff := ffmpeg.ToCStr("20500") // 20.5kHz lowpass cutoff frequency
-	defer valCutoff.Free()
-	if _, err := ffmpeg.AVDictSet(&opts, keyCutoff, valCutoff, 0); err != nil {
-		ffmpeg.AVDictFree(&opts)
-		return fmt.Errorf("failed to set cutoff: %w", err)
+	for key, val := range e.preset.encoderOpts {
+		keyPtr := ffmpeg.ToCStr(key)
+		valPtr := ffmpeg.ToCStr(val)
+		_, err := ffmpeg.AVDictSet(&opts, keyPtr, valPtr, 0)
+		keyPtr.Free()
+		valPtr.Free()
+		if err != nil {
+			ffmpeg.AVDictFree(&opts)
+			return fmt.Errorf("failed to set encoder option %s: %w", key, err)
+		}
 	}
 
 	if _, err := ffmpeg.AVCodecOpen2(e.encCtx, encoder, &opts); err != nil {
@@ -230,10 +273,133 @@ func (e *Encoder) openOutput() error {
 		e.ofmtCtx.SetPb(pb)
 	}
 
-	if _, err := ffmpeg.AVFormatWriteHeader(e.ofmtCtx, nil); err != nil {
-		return fmt.Errorf("failed to write header: %w", err)
+	if err := e.setMuxerMetadata(); err != nil {
+		return err
 	}
 
+	// Add the attached-picture stream after the audio stream so audio keeps
+	// index 0 (outStreamIndex). Opus is not cover-capable and absent cover
+	// bytes mean no second stream, leaving the audio-only path unchanged.
+	if e.preset.coverCapable && len(e.coverArt) > 0 {
+		if err := e.addCoverStream(); err != nil {
+			return err
+		}
+	}
+
+	// id3v2_version is an mp3-muxer-private option, so it goes through the
+	// WriteHeader options dict, not the format-context metadata. Other muxers
+	// ignore it. The dict is owned here and freed after WriteHeader.
+	var muxerOpts *ffmpeg.AVDictionary
+	if e.preset.name == "mp3" {
+		keyPtr := ffmpeg.ToCStr("id3v2_version")
+		valPtr := ffmpeg.ToCStr("4")
+		_, err := ffmpeg.AVDictSet(&muxerOpts, keyPtr, valPtr, 0)
+		keyPtr.Free()
+		valPtr.Free()
+		if err != nil {
+			ffmpeg.AVDictFree(&muxerOpts)
+			return fmt.Errorf("failed to set id3v2_version option: %w", err)
+		}
+	}
+
+	if _, err := ffmpeg.AVFormatWriteHeader(e.ofmtCtx, &muxerOpts); err != nil {
+		ffmpeg.AVDictFree(&muxerOpts)
+		return fmt.Errorf("failed to write header: %w", err)
+	}
+	ffmpeg.AVDictFree(&muxerOpts)
+
+	// Write the cover picture immediately after the header so the muxer carries
+	// it as the attached picture before any audio packet.
+	if e.coverStreamIndex >= 0 {
+		if err := e.writeCoverPacket(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// addCoverStream creates the attached-picture stream that carries the scaled
+// PNG cover. It is added after the audio stream, so the audio stream keeps
+// index 0. The packet itself is written after AVFormatWriteHeader by
+// writeCoverPacket.
+func (e *Encoder) addCoverStream() error {
+	coverStream := ffmpeg.AVFormatNewStream(e.ofmtCtx, nil)
+	if coverStream == nil {
+		return fmt.Errorf("failed to create cover stream")
+	}
+
+	// The mp3 and ipod muxers reject an attached-picture stream without
+	// dimensions, so read them from the PNG header.
+	cfg, err := png.DecodeConfig(bytes.NewReader(e.coverArt))
+	if err != nil {
+		return fmt.Errorf("failed to read cover dimensions: %w", err)
+	}
+
+	codecPar := coverStream.Codecpar()
+	codecPar.SetCodecType(ffmpeg.AVMediaTypeVideo)
+	// ScaleCoverArt always emits PNG, so the picture stream uses the PNG codec.
+	codecPar.SetCodecId(ffmpeg.AVCodecIdPng)
+	codecPar.SetWidth(cfg.Width)
+	codecPar.SetHeight(cfg.Height)
+	coverStream.SetDisposition(ffmpeg.AVDispositionAttachedPic)
+
+	e.coverStreamIndex = coverStream.Index()
+	return nil
+}
+
+// writeCoverPacket allocates a packet sized to the cover bytes, copies the PNG
+// data into it, marks it a keyframe on the attached-picture stream, and writes
+// it to the muxer. The packet is freed before returning, so Close never touches
+// it.
+func (e *Encoder) writeCoverPacket() error {
+	pkt := ffmpeg.AVPacketAlloc()
+	if pkt == nil {
+		return fmt.Errorf("failed to allocate cover packet")
+	}
+	defer ffmpeg.AVPacketFree(&pkt)
+
+	if _, err := ffmpeg.AVNewPacket(pkt, len(e.coverArt)); err != nil {
+		return fmt.Errorf("failed to allocate cover packet data: %w", err)
+	}
+
+	dst := unsafe.Slice((*byte)(pkt.Data()), len(e.coverArt))
+	copy(dst, e.coverArt)
+
+	pkt.SetStreamIndex(e.coverStreamIndex)
+	pkt.SetFlags(pkt.Flags() | ffmpeg.AVPktFlagKey)
+
+	if _, err := ffmpeg.AVInterleavedWriteFrame(e.ofmtCtx, pkt); err != nil {
+		return fmt.Errorf("failed to write cover packet: %w", err)
+	}
+
+	return nil
+}
+
+// setMuxerMetadata builds the standard-key tag dictionary from the episode
+// metadata and hands it to the output format context. SetMetadata transfers
+// ownership to the context (freed by avformat_free_context), so this dict is
+// never freed here. Preset-agnostic: every format gets the same standard keys.
+func (e *Encoder) setMuxerMetadata() error {
+	tags := buildMuxerTags(e.metadata)
+	if len(tags) == 0 {
+		return nil
+	}
+
+	var dict *ffmpeg.AVDictionary
+	for _, tag := range tags {
+		keyPtr := ffmpeg.ToCStr(tag.Key)
+		valPtr := ffmpeg.ToCStr(tag.Value)
+		_, err := ffmpeg.AVDictSet(&dict, keyPtr, valPtr, 0)
+		keyPtr.Free()
+		valPtr.Free()
+		if err != nil {
+			ffmpeg.AVDictFree(&dict)
+			return fmt.Errorf("failed to set metadata %s: %w", tag.Key, err)
+		}
+	}
+
+	e.ofmtCtx.SetMetadata(dict)
 	return nil
 }
 
@@ -306,14 +472,17 @@ func (e *Encoder) initFilter() error {
 	inputs.SetPadIdx(0)
 	inputs.SetNext(nil)
 
-	// Build filter spec: resample to 44100Hz S16P, set the target channel layout
-	// (stereo keeps channels, mono downmixes), then reframe to LAME's 1152 size.
+	// Build filter spec: resample to the preset's sample rate and sample format,
+	// set the target channel layout (stereo keeps channels, mono downmixes).
+	// Frame sizing is applied to the buffer sink after this graph is built
+	// (see below), not via asetnsamples, so each encoder gets its required size.
 	channelLayout := "mono"
 	if e.stereo {
 		channelLayout = "stereo"
 	}
-	filterSpec := fmt.Sprintf("aresample=%d:async=1,aformat=sample_fmts=s16p:sample_rates=44100:channel_layouts=%s,asetnsamples=n=1152",
-		e.encCtx.SampleRate(), channelLayout)
+	sampleFmtName := ffmpeg.AVGetSampleFmtName(e.preset.sampleFmt).String()
+	filterSpec := fmt.Sprintf("aresample=%d:async=1,aformat=sample_fmts=%s:sample_rates=%d:channel_layouts=%s",
+		e.preset.sampleRate, sampleFmtName, e.preset.sampleRate, channelLayout)
 
 	filterSpecC := ffmpeg.ToCStr(filterSpec)
 	defer filterSpecC.Free()
@@ -324,6 +493,16 @@ func (e *Encoder) initFilter() error {
 
 	if _, err := ffmpeg.AVFilterGraphConfig(e.filterGraph, nil); err != nil {
 		return fmt.Errorf("failed to configure filter graph: %w", err)
+	}
+
+	// Fix the buffer-sink frame size to the encoder's required frame size so the
+	// filter delivers exactly the frames the encoder expects (LAME 1152, native
+	// AAC 1024, libopus its own). Encoders that accept variable-size frames
+	// advertise AV_CODEC_CAP_VARIABLE_FRAME_SIZE and need no fixed size.
+	// openOutput runs before initFilter, so encCtx.FrameSize() is populated here.
+	if frameSize := e.encCtx.FrameSize(); frameSize > 0 &&
+		e.encCtx.Codec().Capabilities()&ffmpeg.AVCodecCapVariableFrameSize == 0 {
+		ffmpeg.AVBuffersinkSetFrameSize(e.bufferSinkCtx, uint(frameSize))
 	}
 
 	return nil
@@ -337,7 +516,7 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 	packet := ffmpeg.AVPacketAlloc()
 	defer ffmpeg.AVPacketFree(&packet)
 
-	outStream := e.ofmtCtx.Streams().Get(0)
+	outStream := e.ofmtCtx.Streams().Get(uintptr(e.outStreamIndex)) //nolint:gosec // outStreamIndex is set from AVFormatNewStream in openOutput
 
 	for {
 		// Observe cancellation before the next cgo call so Encode returns while
@@ -493,7 +672,7 @@ func (e *Encoder) drainEncoder(outStream *ffmpeg.AVStream, recvErrCtx string) er
 		}
 
 		// Rescale packet timestamps from encoder to output stream time base.
-		e.encPkt.SetStreamIndex(0)
+		e.encPkt.SetStreamIndex(e.outStreamIndex)
 		ffmpeg.AVPacketRescaleTs(e.encPkt, e.encCtx.TimeBase(), outStream.TimeBase())
 
 		if _, err := ffmpeg.AVInterleavedWriteFrame(e.ofmtCtx, e.encPkt); err != nil {

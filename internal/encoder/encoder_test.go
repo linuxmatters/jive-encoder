@@ -1,12 +1,46 @@
 package encoder
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sync"
 	"testing"
+
+	"github.com/linuxmatters/jivedrop/internal/id3"
 )
+
+// TestNewFormatResolution verifies that New defaults an empty Format to the
+// mp3 preset and rejects an unknown format.
+func TestNewFormatResolution(t *testing.T) {
+	t.Run("unknown format errors", func(t *testing.T) {
+		if _, err := New(Config{
+			InputPath:  "in.flac",
+			OutputPath: "out.mp3",
+			Format:     "bogus",
+		}); err == nil {
+			t.Fatal("expected error for unknown format, got nil")
+		}
+	})
+
+	t.Run("empty format resolves to mp3", func(t *testing.T) {
+		enc, err := New(Config{
+			InputPath:  "in.flac",
+			OutputPath: "out.mp3",
+		})
+		if err != nil {
+			t.Fatalf("New failed: %v", err)
+		}
+		if enc.preset.name != "mp3" {
+			t.Fatalf("expected mp3 preset, got %q", enc.preset.name)
+		}
+		if enc.outStreamIndex != -1 {
+			t.Fatalf("expected outStreamIndex -1, got %d", enc.outStreamIndex)
+		}
+	})
+}
 
 // TestEncodeToMP3_Integration is an integration test that verifies
 // the full encoding pipeline works and creates a test MP3 file that
@@ -89,6 +123,370 @@ func TestEncodeToMP3_Integration(t *testing.T) {
 
 		t.Logf("Created stereo MP3: %s (%d bytes)", stereoOutput, info.Size())
 	})
+}
+
+// TestEncodeToM4A_Integration is an integration test that verifies the full
+// AAC encoding pipeline works and creates a test M4A file.
+func TestEncodeToM4A_Integration(t *testing.T) {
+	inputPath := "../../testdata/LMP0.flac"
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		t.Skipf("Test file not found: %s", inputPath)
+	}
+
+	t.Run("mono encoding", func(t *testing.T) {
+		outputPath := "../../testdata/LMP0.m4a"
+		defer os.Remove(outputPath)
+
+		enc, err := New(Config{
+			InputPath:  inputPath,
+			OutputPath: outputPath,
+			Format:     "aac",
+			Stereo:     false,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create encoder: %v", err)
+		}
+		defer enc.Close()
+
+		if err := enc.Initialize(); err != nil {
+			t.Fatalf("Failed to initialize encoder: %v", err)
+		}
+
+		err = enc.Encode(nil)
+		if err != nil {
+			t.Fatalf("Encode failed: %v", err)
+		}
+
+		info, err := os.Stat(outputPath)
+		if err != nil {
+			t.Fatalf("Output file not created: %v", err)
+		}
+
+		// A real audio file should exceed 1KB; a smaller output signals a broken encode.
+		if info.Size() < 1024 {
+			t.Errorf("Output file too small: %d bytes", info.Size())
+		}
+
+		t.Logf("Created M4A: %s (%d bytes)", outputPath, info.Size())
+	})
+
+	t.Run("stereo encoding", func(t *testing.T) {
+		stereoOutput := "../../testdata/LMP0-stereo.m4a"
+		defer os.Remove(stereoOutput)
+
+		enc, err := New(Config{
+			InputPath:  inputPath,
+			OutputPath: stereoOutput,
+			Format:     "aac",
+			Stereo:     true,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create encoder: %v", err)
+		}
+		defer enc.Close()
+
+		if err := enc.Initialize(); err != nil {
+			t.Fatalf("Failed to initialize encoder: %v", err)
+		}
+
+		err = enc.Encode(nil)
+		if err != nil {
+			t.Fatalf("Encode (stereo) failed: %v", err)
+		}
+
+		info, err := os.Stat(stereoOutput)
+		if err != nil {
+			t.Fatalf("Stereo output file not created: %v", err)
+		}
+
+		// Stereo file should be larger than mono (approximately 128/64 ratio)
+		if info.Size() < 1024 {
+			t.Errorf("Stereo output file too small: %d bytes", info.Size())
+		}
+
+		t.Logf("Created stereo M4A: %s (%d bytes)", stereoOutput, info.Size())
+	})
+}
+
+// TestEncodeToOpus_Integration is an integration test that verifies the full
+// Opus encoding pipeline works and creates a test Opus file. libopus rejects
+// 44.1 kHz, so the Opus path resamples to 48 kHz.
+func TestEncodeToOpus_Integration(t *testing.T) {
+	inputPath := "../../testdata/LMP0.flac"
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		t.Skipf("Test file not found: %s", inputPath)
+	}
+
+	t.Run("mono encoding", func(t *testing.T) {
+		outputPath := "../../testdata/LMP0.opus"
+		defer os.Remove(outputPath)
+
+		enc, err := New(Config{
+			InputPath:  inputPath,
+			OutputPath: outputPath,
+			Format:     "opus",
+			Stereo:     false,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create encoder: %v", err)
+		}
+		defer enc.Close()
+
+		if err := enc.Initialize(); err != nil {
+			t.Fatalf("Failed to initialize encoder: %v", err)
+		}
+
+		err = enc.Encode(nil)
+		if err != nil {
+			t.Fatalf("Encode failed: %v", err)
+		}
+
+		info, err := os.Stat(outputPath)
+		if err != nil {
+			t.Fatalf("Output file not created: %v", err)
+		}
+
+		// A real audio file should exceed 1KB; a smaller output signals a broken encode.
+		if info.Size() < 1024 {
+			t.Errorf("Output file too small: %d bytes", info.Size())
+		}
+
+		t.Logf("Created Opus: %s (%d bytes)", outputPath, info.Size())
+	})
+
+	t.Run("stereo encoding", func(t *testing.T) {
+		stereoOutput := "../../testdata/LMP0-stereo.opus"
+		defer os.Remove(stereoOutput)
+
+		enc, err := New(Config{
+			InputPath:  inputPath,
+			OutputPath: stereoOutput,
+			Format:     "opus",
+			Stereo:     true,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create encoder: %v", err)
+		}
+		defer enc.Close()
+
+		if err := enc.Initialize(); err != nil {
+			t.Fatalf("Failed to initialize encoder: %v", err)
+		}
+
+		err = enc.Encode(nil)
+		if err != nil {
+			t.Fatalf("Encode (stereo) failed: %v", err)
+		}
+
+		info, err := os.Stat(stereoOutput)
+		if err != nil {
+			t.Fatalf("Stereo output file not created: %v", err)
+		}
+
+		// Stereo file should be larger than mono (approximately 48/32 ratio)
+		if info.Size() < 1024 {
+			t.Errorf("Stereo output file too small: %d bytes", info.Size())
+		}
+
+		t.Logf("Created stereo Opus: %s (%d bytes)", stereoOutput, info.Size())
+	})
+}
+
+// TestEncodeMP3Metadata_Integration encodes an MP3 with populated Metadata and
+// asserts the muxer-native tags survive into the ID3v2 frames, probed via
+// ffprobe. This proves the AVDictionary path independent of any other tagging.
+// TDRC (date) and COMM (comment) are the highest-risk frames, so both are
+// asserted explicitly alongside title/artist/album/track.
+func TestEncodeMP3Metadata_Integration(t *testing.T) {
+	inputPath := "../../testdata/LMP0.flac"
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		t.Skipf("Test file not found: %s", inputPath)
+	}
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		t.Skip("ffprobe not available")
+	}
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "meta.mp3")
+
+	enc, err := New(Config{
+		InputPath:  inputPath,
+		OutputPath: outputPath,
+		Stereo:     false,
+		Metadata: Metadata{
+			EpisodeNumber: "67",
+			Title:         "Panache, for men",
+			Artist:        "Linux Matters",
+			Album:         "Linux Matters Podcast",
+			Date:          "2025-10",
+			Comment:       "A test comment",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create encoder: %v", err)
+	}
+	defer enc.Close()
+
+	if err := enc.Initialize(); err != nil {
+		t.Fatalf("Failed to initialize encoder: %v", err)
+	}
+	if err := enc.Encode(nil); err != nil {
+		t.Fatalf("Encode failed: %v", err)
+	}
+
+	tags := probeFormatTags(t, outputPath)
+
+	want := map[string]string{
+		"title":   "67: Panache, for men",
+		"artist":  "Linux Matters",
+		"album":   "Linux Matters Podcast",
+		"date":    "2025-10",
+		"comment": "A test comment",
+		"track":   "67",
+	}
+	for key, value := range want {
+		got, ok := tags[key]
+		if !ok {
+			t.Errorf("missing %s tag in ffprobe output", key)
+			continue
+		}
+		if got != value {
+			t.Errorf("%s tag: got %q, want %q", key, got, value)
+		}
+	}
+}
+
+// probeFormatTags runs ffprobe and returns the format-level tag map.
+func probeFormatTags(t *testing.T, path string) map[string]string {
+	t.Helper()
+
+	cmd := exec.CommandContext(t.Context(), "ffprobe", "-show_format", "-of", "json", path)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("ffprobe failed: %v", err)
+	}
+
+	var probe struct {
+		Format struct {
+			Tags map[string]string `json:"tags"`
+		} `json:"format"`
+	}
+	if err := json.Unmarshal(out, &probe); err != nil {
+		t.Fatalf("failed to parse ffprobe output: %v", err)
+	}
+
+	return probe.Format.Tags
+}
+
+// TestEncodeCoverArt_Integration encodes with scaled cover bytes and asserts
+// the attached-picture stream behaviour per format: MP3 and AAC are
+// cover-capable and must carry an attached-picture video stream, while Opus is
+// not cover-capable and must stay audio-only. The cover bytes come from
+// id3.ScaleCoverArt on a real testdata PNG fixture.
+func TestEncodeCoverArt_Integration(t *testing.T) {
+	inputPath := "../../testdata/LMP0.flac"
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		t.Skipf("Test file not found: %s", inputPath)
+	}
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		t.Skip("ffprobe not available")
+	}
+
+	coverPath := "../../testdata/linuxmatters-alt.png"
+	if _, err := os.Stat(coverPath); os.IsNotExist(err) {
+		t.Skipf("Cover fixture not found: %s", coverPath)
+	}
+	cover, err := id3.ScaleCoverArt(coverPath)
+	if err != nil {
+		t.Fatalf("ScaleCoverArt failed: %v", err)
+	}
+	if len(cover) == 0 {
+		t.Fatal("ScaleCoverArt returned no bytes")
+	}
+
+	tests := []struct {
+		name      string
+		format    string
+		ext       string
+		wantCover bool
+	}{
+		{name: "mp3 carries attached picture", format: "mp3", ext: "mp3", wantCover: true},
+		{name: "aac carries attached picture", format: "aac", ext: "m4a", wantCover: true},
+		{name: "opus has no attached picture", format: "opus", ext: "opus", wantCover: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			outputPath := filepath.Join(t.TempDir(), "cover."+tt.ext)
+
+			enc, err := New(Config{
+				InputPath:  inputPath,
+				OutputPath: outputPath,
+				Format:     tt.format,
+				Stereo:     false,
+				CoverArt:   cover,
+			})
+			if err != nil {
+				t.Fatalf("Failed to create encoder: %v", err)
+			}
+			defer enc.Close()
+
+			if err := enc.Initialize(); err != nil {
+				t.Fatalf("Failed to initialize encoder: %v", err)
+			}
+			if err := enc.Encode(nil); err != nil {
+				t.Fatalf("Encode failed: %v", err)
+			}
+
+			streams := probeStreams(t, outputPath)
+
+			var haveAudio, haveAttachedPic bool
+			for _, s := range streams {
+				switch s.CodecType {
+				case "audio":
+					haveAudio = true
+				case "video":
+					if s.Disposition["attached_pic"] == 1 {
+						haveAttachedPic = true
+					}
+				}
+			}
+
+			if !haveAudio {
+				t.Errorf("%s: no audio stream in output", tt.format)
+			}
+			if haveAttachedPic != tt.wantCover {
+				t.Errorf("%s: attached_pic stream present = %v, want %v", tt.format, haveAttachedPic, tt.wantCover)
+			}
+		})
+	}
+}
+
+// probeStream is a minimal ffprobe stream record covering the fields the cover
+// test asserts.
+type probeStream struct {
+	CodecType   string         `json:"codec_type"`
+	Disposition map[string]int `json:"disposition"`
+}
+
+// probeStreams runs ffprobe -show_streams and returns the decoded stream list.
+func probeStreams(t *testing.T, path string) []probeStream {
+	t.Helper()
+
+	cmd := exec.CommandContext(t.Context(), "ffprobe", "-show_streams", "-of", "json", path)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("ffprobe failed: %v", err)
+	}
+
+	var probe struct {
+		Streams []probeStream `json:"streams"`
+	}
+	if err := json.Unmarshal(out, &probe); err != nil {
+		t.Fatalf("failed to parse ffprobe output: %v", err)
+	}
+
+	return probe.Streams
 }
 
 // TestEncoder_InvalidInput tests error handling for invalid inputs

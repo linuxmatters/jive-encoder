@@ -951,3 +951,52 @@ episode_image: "/img/cover.png"
 		t.Errorf("Expected 'could not find Hugo project root' error, got: %v", err)
 	}
 }
+
+func TestBuildMuxerTags(t *testing.T) {
+	tags := buildMuxerTags(Metadata{
+		EpisodeNumber: "67",
+		Title:         "Foo",
+		Artist:        "Linux Matters",
+		Album:         "Linux Matters",
+		Date:          "2026-06",
+		Comment:       "A comment",
+	})
+
+	got := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		got[tag.Key] = tag.Value
+	}
+
+	if got["title"] != "67: Foo" {
+		t.Errorf("title = %q, want %q", got["title"], "67: Foo")
+	}
+	if got["track"] != "67" {
+		t.Errorf("track = %q, want %q", got["track"], "67")
+	}
+	for _, key := range []string{"artist", "album", "date", "comment"} {
+		if got[key] == "" {
+			t.Errorf("expected %q to be present", key)
+		}
+	}
+}
+
+func TestBuildMuxerTagsSkipsEmpty(t *testing.T) {
+	tags := buildMuxerTags(Metadata{EpisodeNumber: "67", Title: "Foo"})
+
+	got := make(map[string]string, len(tags))
+	for _, tag := range tags {
+		got[tag.Key] = tag.Value
+	}
+
+	if got["title"] != "67: Foo" {
+		t.Errorf("title = %q, want %q", got["title"], "67: Foo")
+	}
+	if got["track"] != "67" {
+		t.Errorf("track = %q, want %q", got["track"], "67")
+	}
+	for _, key := range []string{"artist", "album", "date", "comment"} {
+		if _, ok := got[key]; ok {
+			t.Errorf("expected %q to be skipped, got %q", key, got[key])
+		}
+	}
+}

@@ -29,6 +29,37 @@ func ParseEpisodeNumber(s string) (string, error) {
 	return s, nil
 }
 
+// muxerTag pairs a standard muxer metadata key with its value. Ordered pairs
+// keep tag emission deterministic across the title/artist/album/date/comment/track set.
+type muxerTag struct {
+	Key   string
+	Value string
+}
+
+// buildMuxerTags renders the muxer metadata key/value set from the episode
+// fields, skipping empty values. The title preserves the "{EpisodeNumber}: {Title}"
+// format. The track key carries the episode number, matching the previous TRCK frame.
+func buildMuxerTags(m Metadata) []muxerTag {
+	var tags []muxerTag
+
+	add := func(key, value string) {
+		if value != "" {
+			tags = append(tags, muxerTag{Key: key, Value: value})
+		}
+	}
+
+	if m.Title != "" {
+		add("title", fmt.Sprintf("%s: %s", m.EpisodeNumber, m.Title))
+	}
+	add("artist", m.Artist)
+	add("album", m.Album)
+	add("date", m.Date)
+	add("comment", m.Comment)
+	add("track", m.EpisodeNumber)
+
+	return tags
+}
+
 // EpisodeMetadata holds parsed episode information from Hugo frontmatter
 type EpisodeMetadata struct {
 	Episode         string    `yaml:"episode"`

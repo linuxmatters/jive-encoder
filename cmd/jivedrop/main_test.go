@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/alecthomas/kong"
 )
 
 // TestSanitiseForFilename tests filename sanitisation for dangerous and special characters
@@ -177,6 +179,7 @@ func TestGenerateFilename(t *testing.T) {
 		num       string
 		artist    string
 		cliArtist string // Simulates CLI.Artist global
+		ext       string
 		expected  string
 	}{
 		// Hugo mode - default behaviour
@@ -186,7 +189,45 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "67",
 			artist:    "",
 			cliArtist: "",
+			ext:       ".mp3",
 			expected:  "LMP67.mp3",
+		},
+		// Per-format extension
+		{
+			name:      "hugo default opus",
+			mode:      HugoMode,
+			num:       "67",
+			artist:    "",
+			cliArtist: "",
+			ext:       ".opus",
+			expected:  "LMP67.opus",
+		},
+		{
+			name:      "hugo default aac",
+			mode:      HugoMode,
+			num:       "67",
+			artist:    "",
+			cliArtist: "",
+			ext:       ".m4a",
+			expected:  "LMP67.m4a",
+		},
+		{
+			name:      "standalone artist opus",
+			mode:      StandaloneMode,
+			num:       "1",
+			artist:    "My Show",
+			cliArtist: "My Show",
+			ext:       ".opus",
+			expected:  "my-show-1.opus",
+		},
+		{
+			name:      "standalone fallback m4a",
+			mode:      StandaloneMode,
+			num:       "1",
+			artist:    "",
+			cliArtist: "",
+			ext:       ".m4a",
+			expected:  "episode-1.m4a",
 		},
 		{
 			name:      "hugo episode 0",
@@ -194,6 +235,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "0",
 			artist:    "",
 			cliArtist: "",
+			ext:       ".mp3",
 			expected:  "LMP0.mp3",
 		},
 		{
@@ -202,6 +244,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "999",
 			artist:    "",
 			cliArtist: "",
+			ext:       ".mp3",
 			expected:  "LMP999.mp3",
 		},
 		// Hugo mode - custom artist override
@@ -211,6 +254,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "67",
 			artist:    "Custom Podcast",
 			cliArtist: "Custom Podcast",
+			ext:       ".mp3",
 			expected:  "custom-podcast-67.mp3",
 		},
 		{
@@ -219,6 +263,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "42",
 			artist:    "The (Real) Show",
 			cliArtist: "The (Real) Show",
+			ext:       ".mp3",
 			expected:  "the-real-show-42.mp3",
 		},
 		// Hugo mode - Linux Matters default not triggered by override
@@ -228,6 +273,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "50",
 			artist:    "Linux Matters",
 			cliArtist: "Linux Matters",
+			ext:       ".mp3",
 			expected:  "LMP50.mp3",
 		},
 		{
@@ -236,6 +282,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "55",
 			artist:    "Other",
 			cliArtist: "",
+			ext:       ".mp3",
 			expected:  "LMP55.mp3",
 		},
 		// Standalone mode - with artist
@@ -245,6 +292,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "1",
 			artist:    "My Show",
 			cliArtist: "My Show",
+			ext:       ".mp3",
 			expected:  "my-show-1.mp3",
 		},
 		{
@@ -253,6 +301,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "42",
 			artist:    "The Daily Show (Late Night)",
 			cliArtist: "The Daily Show (Late Night)",
+			ext:       ".mp3",
 			expected:  "the-daily-show-late-night-42.mp3",
 		},
 		{
@@ -261,6 +310,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "99",
 			artist:    "This Is A Very Long Podcast Name",
 			cliArtist: "This Is A Very Long Podcast Name",
+			ext:       ".mp3",
 			expected:  "this-is-a-very-long-podcast-name-99.mp3",
 		},
 		// Standalone mode - without artist (fallback to episode)
@@ -270,6 +320,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "1",
 			artist:    "",
 			cliArtist: "",
+			ext:       ".mp3",
 			expected:  "episode-1.mp3",
 		},
 		{
@@ -278,6 +329,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "42",
 			artist:    "",
 			cliArtist: "",
+			ext:       ".mp3",
 			expected:  "episode-42.mp3",
 		},
 		// Edge cases with numbers
@@ -287,6 +339,7 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "007",
 			artist:    "James Bond",
 			cliArtist: "James Bond",
+			ext:       ".mp3",
 			expected:  "james-bond-007.mp3",
 		},
 		{
@@ -295,16 +348,17 @@ func TestGenerateFilename(t *testing.T) {
 			num:       "5",
 			artist:    "99 Luftballons",
 			cliArtist: "99 Luftballons",
+			ext:       ".mp3",
 			expected:  "99-luftballons-5.mp3",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generateFilename(tt.mode, tt.num, tt.artist, tt.cliArtist)
+			result := generateFilename(tt.mode, tt.num, tt.artist, tt.cliArtist, tt.ext)
 			if result != tt.expected {
-				t.Errorf("generateFilename(%v, %q, %q, %q) = %q; want %q",
-					tt.mode, tt.num, tt.artist, tt.cliArtist, result, tt.expected)
+				t.Errorf("generateFilename(%v, %q, %q, %q, %q) = %q; want %q",
+					tt.mode, tt.num, tt.artist, tt.cliArtist, tt.ext, result, tt.expected)
 			}
 		})
 	}
@@ -319,6 +373,7 @@ func TestResolveOutputPath(t *testing.T) {
 		num        string
 		artist     string
 		cliArtist  string
+		ext        string
 		wantErr    bool
 		wantPath   string // Substring check for path validation
 	}{
@@ -330,6 +385,7 @@ func TestResolveOutputPath(t *testing.T) {
 			num:        "67",
 			artist:     "",
 			cliArtist:  "",
+			ext:        ".mp3",
 			wantErr:    false,
 			wantPath:   "LMP67.mp3",
 		},
@@ -340,8 +396,20 @@ func TestResolveOutputPath(t *testing.T) {
 			num:        "42",
 			artist:     "Test Show",
 			cliArtist:  "Test Show",
+			ext:        ".mp3",
 			wantErr:    false,
 			wantPath:   "test-show-42.mp3",
+		},
+		{
+			name:       "empty path opus extension",
+			outputPath: "",
+			mode:       HugoMode,
+			num:        "67",
+			artist:     "",
+			cliArtist:  "",
+			ext:        ".opus",
+			wantErr:    false,
+			wantPath:   "LMP67.opus",
 		},
 		// Existing directory - generate filename within it
 		{
@@ -351,6 +419,7 @@ func TestResolveOutputPath(t *testing.T) {
 			num:        "1",
 			artist:     "Show",
 			cliArtist:  "Show",
+			ext:        ".mp3",
 			wantErr:    false,
 			wantPath:   "show-1.mp3",
 		},
@@ -362,6 +431,7 @@ func TestResolveOutputPath(t *testing.T) {
 			num:        "1",
 			artist:     "ignored",
 			cliArtist:  "ignored",
+			ext:        ".mp3",
 			wantErr:    false,
 			wantPath:   "custom-output.mp3",
 		},
@@ -373,8 +443,9 @@ func TestResolveOutputPath(t *testing.T) {
 			num:        "99",
 			artist:     "",
 			cliArtist:  "",
+			ext:        ".m4a",
 			wantErr:    false,
-			wantPath:   "LMP99.mp3",
+			wantPath:   "LMP99.m4a",
 		},
 		// Error cases: non-existent directory
 		{
@@ -384,6 +455,7 @@ func TestResolveOutputPath(t *testing.T) {
 			num:        "1",
 			artist:     "test",
 			cliArtist:  "test",
+			ext:        ".mp3",
 			wantErr:    true,
 			wantPath:   "",
 		},
@@ -394,6 +466,7 @@ func TestResolveOutputPath(t *testing.T) {
 			num:        "1",
 			artist:     "test",
 			cliArtist:  "test",
+			ext:        ".mp3",
 			wantErr:    true,
 			wantPath:   "",
 		},
@@ -411,7 +484,7 @@ func TestResolveOutputPath(t *testing.T) {
 				}
 			}
 
-			result, err := resolveOutputPath(tt.mode, tt.num, tt.artist, tt.cliArtist, testOutputPath)
+			result, err := resolveOutputPath(tt.mode, tt.num, tt.artist, tt.cliArtist, tt.ext, testOutputPath)
 
 			if tt.wantErr {
 				if err == nil {
@@ -441,7 +514,7 @@ func TestResolveOutputPath_FileOverwrite(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	result, err := resolveOutputPath(HugoMode, "1", "", "", existingFile)
+	result, err := resolveOutputPath(HugoMode, "1", "", "", ".mp3", existingFile)
 	if err != nil {
 		t.Errorf("resolveOutputPath() with existing file: got unexpected error: %v", err)
 	}
@@ -455,7 +528,7 @@ func TestResolveOutputPath_FileOverwrite(t *testing.T) {
 func TestResolveOutputPath_GeneratedFilenameInTempDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	result, err := resolveOutputPath(StandaloneMode, "42", "Test Show", "Test Show", tmpDir)
+	result, err := resolveOutputPath(StandaloneMode, "42", "Test Show", "Test Show", ".mp3", tmpDir)
 	if err != nil {
 		t.Errorf("resolveOutputPath() unexpected error: %v", err)
 	}
@@ -691,8 +764,54 @@ func BenchmarkSanitiseForFilename(b *testing.B) {
 func BenchmarkGenerateFilename(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
-		generateFilename(HugoMode, "67", "", "Linux Matters")
-		generateFilename(StandaloneMode, "42", "My Podcast", "My Podcast")
-		generateFilename(StandaloneMode, "1", "", "")
+		generateFilename(HugoMode, "67", "", "Linux Matters", ".mp3")
+		generateFilename(StandaloneMode, "42", "My Podcast", "My Podcast", ".mp3")
+		generateFilename(StandaloneMode, "1", "", "", ".mp3")
 	}
+}
+
+// TestFormatFlag verifies the --format Kong enum accepts the three supported
+// formats, rejects unknown values at parse time, and defaults to mp3.
+func TestFormatFlag(t *testing.T) {
+	type formatCLI struct {
+		Format string `enum:"mp3,opus,aac" default:"mp3"`
+	}
+
+	parse := func(args []string) (string, error) {
+		var c formatCLI
+		parser, err := kong.New(&c)
+		if err != nil {
+			t.Fatalf("failed to build parser: %v", err)
+		}
+		if _, err := parser.Parse(args); err != nil {
+			return "", err
+		}
+		return c.Format, nil
+	}
+
+	t.Run("opus accepted", func(t *testing.T) {
+		got, err := parse([]string{"--format", "opus"})
+		if err != nil {
+			t.Fatalf("expected --format opus to parse, got error: %v", err)
+		}
+		if got != "opus" {
+			t.Fatalf("expected format opus, got %q", got)
+		}
+	})
+
+	t.Run("flac rejected", func(t *testing.T) {
+		if _, err := parse([]string{"--format", "flac"}); err == nil {
+			t.Fatal("expected --format flac to be rejected by the enum")
+		}
+	})
+
+	t.Run("defaults to mp3", func(t *testing.T) {
+		got, err := parse(nil)
+		if err != nil {
+			t.Fatalf("expected default invocation to parse, got error: %v", err)
+		}
+		if got != "mp3" {
+			t.Fatalf("expected default format mp3, got %q", got)
+		}
+	})
 }

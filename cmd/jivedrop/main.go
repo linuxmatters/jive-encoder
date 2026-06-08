@@ -52,8 +52,9 @@ var CLI struct {
 	OutputPath string `help:"Output file or directory path"`
 
 	// Encoding options
-	Stereo  bool `help:"Encode as stereo at 192kbps (default: mono at 112kbps)"`
-	Version bool `help:"Show version information"`
+	Format  string `help:"Output format" enum:"mp3,opus,aac" default:"mp3"`
+	Stereo  bool   `help:"Encode as stereo at 192kbps (default: mono at 112kbps)"`
+	Version bool   `help:"Show version information"`
 }
 
 // detectMode determines if this is Hugo or Standalone workflow
@@ -88,39 +89,41 @@ func sanitiseForFilename(s string) string {
 // generateFilename creates the output filename based on mode and metadata.
 // cliArtist is the raw --artist flag value, used in Hugo mode to decide whether
 // the default LMP prefix is overridden; artist is the resolved metadata artist.
-func generateFilename(mode WorkflowMode, num, artist, cliArtist string) string {
+// ext is the output file extension including the leading dot (e.g. ".mp3").
+func generateFilename(mode WorkflowMode, num, artist, cliArtist, ext string) string {
 	if mode == HugoMode {
-		// Hugo mode: LMP{num}.mp3 unless artist is overridden
+		// Hugo mode: LMP{num}{ext} unless artist is overridden
 		if cliArtist != "" && cliArtist != HugoDefaultArtist {
 			sanitisedArtist := sanitiseForFilename(artist)
-			return fmt.Sprintf("%s-%s.mp3", sanitisedArtist, num)
+			return fmt.Sprintf("%s-%s%s", sanitisedArtist, num, ext)
 		}
-		return fmt.Sprintf("%s%s.mp3", HugoDefaultPrefix, num)
+		return fmt.Sprintf("%s%s%s", HugoDefaultPrefix, num, ext)
 	}
 
-	// Standalone mode: {artist}-{num}.mp3 or episode-{num}.mp3 fallback
+	// Standalone mode: {artist}-{num}{ext} or episode-{num}{ext} fallback
 	if artist != "" {
 		sanitisedArtist := sanitiseForFilename(artist)
-		return fmt.Sprintf("%s-%s.mp3", sanitisedArtist, num)
+		return fmt.Sprintf("%s-%s%s", sanitisedArtist, num, ext)
 	}
 
-	return fmt.Sprintf("episode-%s.mp3", num)
+	return fmt.Sprintf("episode-%s%s", num, ext)
 }
 
 // resolveOutputPath determines final output file path. outputPath is the raw
 // --output-path flag value; cliArtist is the raw --artist flag value passed
-// through to generateFilename.
-func resolveOutputPath(mode WorkflowMode, num, artist, cliArtist, outputPath string) (string, error) {
+// through to generateFilename; ext is the output file extension including the
+// leading dot.
+func resolveOutputPath(mode WorkflowMode, num, artist, cliArtist, ext, outputPath string) (string, error) {
 	if outputPath == "" {
 		// No path given: write a generated filename in the current directory.
-		filename := generateFilename(mode, num, artist, cliArtist)
+		filename := generateFilename(mode, num, artist, cliArtist, ext)
 		return filename, nil
 	}
 
 	stat, err := os.Stat(outputPath)
 	if err == nil {
 		if stat.IsDir() {
-			filename := generateFilename(mode, num, artist, cliArtist)
+			filename := generateFilename(mode, num, artist, cliArtist, ext)
 			return filepath.Join(outputPath, filename), nil
 		}
 		return outputPath, nil
@@ -152,6 +155,7 @@ type EncodeRequest struct {
 	OutputPath   string
 	AudioFile    string
 	EpisodeMD    string
+	Format       string
 	Stereo       bool
 }
 
@@ -159,7 +163,7 @@ type EncodeRequest struct {
 // the encoder's resolved input-info line. enc must already be initialised, since
 // the input line reads enc.GetInputInfo().
 func printEncodePlan(req EncodeRequest, enc *encoder.Encoder) {
-	cli.PrintSuccessLabel("Ready to encode:", fmt.Sprintf("%s -> MP3", req.AudioFile))
+	cli.PrintSuccessLabel("Ready to encode:", fmt.Sprintf("%s -> %s", req.AudioFile, strings.ToUpper(req.Format)))
 	cli.PrintLabelValue("• Episode:", fmt.Sprintf("%s - %s", req.TagInfo.EpisodeNumber, req.TagInfo.Title))
 	if req.Mode == HugoMode {
 		cli.PrintLabelValue("• Episode markdown:", req.EpisodeMD)
@@ -231,38 +235,22 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 	return encodeOutcome{}
 }
 
-// embedMetadata finishes the job after a successful encode: receive the
-// concurrently scaled cover art, write ID3 tags, and extract file statistics.
-// The returned partial flag is true when the MP3 was written successfully but
-// stats extraction failed; in that case stats is nil and error is nil.
-func embedMetadata(req EncodeRequest, enc *encoder.Encoder, coverArtChan <-chan coverArtResult) (stats *encoder.FileStats, partial bool, err error) {
-	tagInfo := req.TagInfo
-
-	coverResult := <-coverArtChan
-	if coverResult.err != nil {
-		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing cover art: %s", req.OutputPath))
-		return nil, false, fmt.Errorf("failed to process cover art: %w", coverResult.err)
-	}
-
-	fmt.Println("\nEmbedding ID3v2 tags...")
-	tagInfo.CoverArtData = coverResult.data
-
-	if err := id3.WriteTags(req.OutputPath, tagInfo); err != nil {
-		cli.PrintInfo(fmt.Sprintf("MP3 file created but missing metadata: %s", req.OutputPath))
-		return nil, false, fmt.Errorf("failed to write ID3 tags: %w", err)
-	}
-
+// embedMetadata finishes the job after a successful encode: tags and cover art
+// are written by the encoder during Initialize/Encode, so this only extracts
+// file statistics. The returned partial flag is true when the MP3 was written
+// successfully but stats extraction failed; in that case stats is nil.
+func embedMetadata(req EncodeRequest, enc *encoder.Encoder) (stats *encoder.FileStats, partial bool) {
 	cli.PrintSuccessLabel("Complete:", req.OutputPath)
 
 	// Extract file statistics using duration from encoder (avoids re-opening file)
 	durationSecs := enc.GetDurationSecs()
-	stats, err = encoder.GetFileStats(req.OutputPath, durationSecs)
+	stats, err := encoder.GetFileStats(req.OutputPath, durationSecs)
 	if err != nil {
 		cli.PrintWarning(fmt.Sprintf("Could not extract file statistics: %v", err))
-		return nil, true, nil
+		return nil, true
 	}
 
-	return stats, false, nil
+	return stats, false
 }
 
 // encode orchestrates the full encoding pipeline: print the plan, create and
@@ -271,10 +259,40 @@ func embedMetadata(req EncodeRequest, enc *encoder.Encoder, coverArtChan <-chan 
 // partial flag is true when the MP3 was written successfully but stats
 // extraction failed; in that case stats is nil and error is nil.
 func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err error) {
+	// The encoder now embeds the cover as an attached-picture stream during
+	// Initialize/Encode, so the scaled bytes must exist before Initialize. Scale
+	// up front rather than overlapping the encode; this drops the old
+	// scale/encode concurrency, but scaling is fast so the cost is negligible.
+	coverArtChan := make(chan coverArtResult, 1)
+	go func() {
+		if req.CoverArtPath == "" {
+			coverArtChan <- coverArtResult{data: nil, err: nil}
+			return
+		}
+
+		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath)
+		coverArtChan <- coverArtResult{data: artwork, err: artErr}
+	}()
+
+	coverResult := <-coverArtChan
+	if coverResult.err != nil {
+		return nil, false, fmt.Errorf("failed to process cover art: %w", coverResult.err)
+	}
+
 	enc, err := encoder.New(encoder.Config{
 		InputPath:  req.AudioFile,
 		OutputPath: req.OutputPath,
+		Format:     req.Format,
 		Stereo:     req.Stereo,
+		CoverArt:   coverResult.data,
+		Metadata: encoder.Metadata{
+			EpisodeNumber: req.TagInfo.EpisodeNumber,
+			Title:         req.TagInfo.Title,
+			Artist:        req.TagInfo.Artist,
+			Album:         req.TagInfo.Album,
+			Date:          req.TagInfo.Date,
+			Comment:       req.TagInfo.Comment,
+		},
 	})
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to create encoder: %w", err)
@@ -287,18 +305,6 @@ func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err erro
 
 	printEncodePlan(req, enc)
 
-	// Process cover art concurrently so scaling overlaps the encode.
-	coverArtChan := make(chan coverArtResult, 1)
-	go func() {
-		if req.CoverArtPath == "" {
-			coverArtChan <- coverArtResult{data: nil, err: nil}
-			return
-		}
-
-		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath)
-		coverArtChan <- coverArtResult{data: artwork, err: artErr}
-	}()
-
 	outcome := runEncodeUI(enc, enc.ChannelMode(), enc.Bitrate())
 	if outcome.err != nil {
 		if outcome.partialFile {
@@ -309,7 +315,8 @@ func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err erro
 		return nil, false, outcome.err
 	}
 
-	return embedMetadata(req, enc, coverArtChan)
+	stats, partial = embedMetadata(req, enc)
+	return stats, partial, nil
 }
 
 func main() {
@@ -366,7 +373,7 @@ func run() int {
 		return 1
 	}
 
-	outputPath, err := resolveOutputPath(mode, tagInfo.EpisodeNumber, tagInfo.Artist, CLI.Artist, CLI.OutputPath)
+	outputPath, err := resolveOutputPath(mode, tagInfo.EpisodeNumber, tagInfo.Artist, CLI.Artist, encoder.ExtensionFor(CLI.Format), CLI.OutputPath)
 	if err != nil {
 		cli.PrintError(fmt.Sprintf("Failed to resolve output path: %v", err))
 		return 1
@@ -379,6 +386,7 @@ func run() int {
 		OutputPath:   outputPath,
 		AudioFile:    CLI.AudioFile,
 		EpisodeMD:    CLI.EpisodeMD,
+		Format:       CLI.Format,
 		Stereo:       CLI.Stereo,
 	})
 	if err != nil {

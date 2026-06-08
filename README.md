@@ -1,10 +1,10 @@
 # Jivedrop 🪩
 
-> Drop your podcast .wav into a shiny MP3 with metadata, cover art, and all
+> Drop your podcast .wav into a shiny MP3, AAC, or Opus with metadata, cover art, and all
 
 ## The Groove
 
-Jivedrop takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready MP3 files with optimized encoding, embedded artwork, and complete ID3 metadata. One command, distribution-ready output.
+Jivedrop takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready podcast files with optimised encoding, embedded artwork, and complete metadata. Choose MP3 for universal compatibility, AAC for Apple-recommended quality, or Opus for modern Android and web delivery. One command, distribution-ready output.
 
 ### Example Output
 
@@ -12,13 +12,15 @@ Jivedrop takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready MP3 fil
 
 ### What's Cooking
 
-- 🎵 **CBR 112kbps mono MP3** optimized for podcast distribution
-  - 🎚️ **44.1kHz resampling** with automatic mono downmix
-  - 🎼 **20.5kHz lowpass filter** for clean high-frequency rolloff
-  - 🏆 **LAME quality preset 3** excellent quality, reasonable file size
-- 🏷️ **Complete ID3v2 metadata**
+- 🎵 **Multi-format output** via `--format mp3|aac|opus` (default: mp3)
+  - 🎸 **MP3** CBR 112kbps mono / 192kbps stereo, 44.1kHz, LAME quality 3, 20.5kHz lowpass
+  - 🍏 **AAC** CBR 64kbps mono / 128kbps stereo, 44.1kHz, `.m4a` (Apple-recommended)
+  - 🔊 **Opus** VBR ~32kbps mono / ~48kbps stereo, 48kHz, `.opus` (Android/web)
+- 🏷️ **Format-native metadata** - correct tags for each container
+  - MP3: ID3v2.4 tags with embedded cover art
+  - AAC: iTunes MP4 atoms with embedded cover art
+  - Opus: Vorbis comments (text tags; no embedded cover)
   - Episode title, number, album, artist, date, comment
-  - Embedded cover artwork (PNG)
   - Podcast enclosure stats for duration and bytes
 - ♊ **Dual-mode workflow**
   - 📝 **Hugo mode** read metadata from episode markdown
@@ -41,8 +43,11 @@ For podcasts using Hugo static site generator and the something like [Castanet](
 - Prompts to update Hugo frontmatter
 
 ```bash
-# Basic encoding
+# Basic encoding (MP3 by default)
 jivedrop LMP67.flac episode/67.md
+
+# Encode as AAC for Apple-recommended distribution
+jivedrop LMP67.flac episode/67.md --format aac
 
 # Override Hugo defaults
 jivedrop LMP67.flac episode/67.md --artist "Ubuntu Podcast" --comment "https://ubuntupodcast.org"
@@ -51,11 +56,11 @@ jivedrop LMP67.flac episode/67.md --artist "Ubuntu Podcast" --comment "https://u
 
 **Standalone mode features:**
 - Required flags: `--title`, `--num`, and `--cover`
-- Optional metadata: `--artist`, `--album`, `--date`, `--comment`
-- Smart filename generation: `{artist}-{num}.mp3` or `episode-{num}.mp3`
+- Optional metadata: `--artist`, `--album`, `--date`, `--comment`, `--format`
+- Smart filename generation: `{artist}-{num}.{ext}` or `episode-{num}.{ext}`
 - Album defaults to artist value if not specified
 
-For podcasts without Hugo—specify metadata via flags:
+For podcasts without Hugo, specify metadata via flags:
 
 ```bash
 # Minimal (title, episode number, and cover art required)
@@ -63,6 +68,13 @@ jivedrop audio.flac \
   --title "Terminal Full of Sparkles" \
   --num 66 \
   --cover artwork.png
+
+# Encode as Opus (note: Opus is not accepted by Apple Podcasts)
+jivedrop audio.flac \
+  --title "Terminal Full of Sparkles" \
+  --num 66 \
+  --cover artwork.png \
+  --format opus
 
 # Full metadata
 jivedrop audio.flac \
@@ -72,7 +84,8 @@ jivedrop audio.flac \
   --album "All Seasons" \
   --date "2025-10" \
   --comment "https://linuxmatters.sh/66" \
-  --cover artwork.png
+  --cover artwork.png \
+  --format aac
 ```
 
 ## CLI Reference
@@ -91,28 +104,39 @@ Arguments:
 
 
 Flags:
-  -h, --help  Show context-sensitive help.
-  --title     Episode title (required in standalone mode)
-  --num       Episode number — must be a non-negative integer (required in standalone mode)
-  --cover     Cover art path (required in standalone mode)
-  --artist    Artist name (defaults to 'Linux Matters' in Hugo mode)
-  --album     Album name (defaults to artist value if omitted)
-  --date      Release date (YYYY-MM-DD format)
-  --comment   Comment URL (defaults to 'https://linuxmatters.sh' in Hugo mode)
+  -h, --help     Show context-sensitive help.
+  --num          Episode number, must be a non-negative integer (required in standalone mode)
+  --title        Episode title (required in standalone mode)
+  --artist       Artist name (defaults to 'Linux Matters' in Hugo mode)
+  --album        Album name (defaults to artist value if omitted)
+  --date         Release date (YYYY-MM-DD format)
+  --comment      Comment URL (defaults to 'https://linuxmatters.sh' in Hugo mode)
+  --cover        Cover art path (required in standalone mode)
   --output-path  Output file or directory path
-  --stereo  Encode as stereo at 192kbps (default: mono at 112kbps)
-  --version  Show version information
+  --format       Output format: mp3, aac, or opus (default: "mp3")
+  --stereo       Encode as stereo at 192kbps (default: mono at 112kbps)
+  --version      Show version information
 ```
 
 ### Output
-- Hugo mode:        `LMP{num}.mp3` (or `{artist}-{num}.mp3` with `--artist` override)
-- Standalone mode:  `{artist}-{num}.mp3` (or `episode-{num}.mp3` without `--artist`)
+- Hugo mode:        `LMP{num}.{ext}` (or `{artist}-{num}.{ext}` with `--artist` override)
+- Standalone mode:  `{artist}-{num}.{ext}` (or `episode-{num}.{ext}` without `--artist`)
+
+Where `{ext}` is `.mp3`, `.m4a`, or `.opus` depending on `--format`.
 
 ### Encoding settings
-- Mono:   112kbps CBR, 44.1kHz, quality 3, 20.5kHz lowpass
-- Stereo: 192kbps CBR, 44.1kHz, quality 3, 20.5kHz lowpass
 
-### ID3v2 Tags
+| Format | Mono | Stereo | Sample rate | Notes |
+|--------|------|--------|-------------|-------|
+| MP3 (default) | 112 kbps CBR | 192 kbps CBR | 44.1 kHz | LAME quality 3, 20.5 kHz lowpass |
+| AAC | 64 kbps CBR | 128 kbps CBR | 44.1 kHz | AAC-LC, `.m4a` (ipod muxer), no lowpass |
+| Opus | ~32 kbps VBR | ~48 kbps VBR | 48 kHz | libopus, `.opus`, no lowpass; 48 kHz is Opus's native rate |
+
+### Metadata tags
+
+Tags are written natively by the muxer for each format.
+
+**MP3: ID3v2.4**
 - `TIT2`: `{num}: {title}`
 - `TALB`: `{album}` (omitted if not provided)
 - `TRCK`: `{num}`
@@ -120,6 +144,14 @@ Flags:
 - `TDRC`: `{date}` (defaults to current YYYY-MM)
 - `COMM`: `{comment}` (omitted if not provided)
 - `APIC`: Cover art (PNG, front cover)
+
+**AAC: iTunes MP4 atoms**
+
+Same fields as MP3, written as MP4 atoms. Cover art embedded.
+
+**Opus: Vorbis comments**
+
+Same text fields as MP3. Cover art is not embedded in Opus files.
 
 ## Build
 
@@ -137,6 +169,6 @@ just test-encoder # Test encoder
 
 ## Why Jivedrop?
 
-FFmpeg's CLI can absolutely encode podcast-ready MP3s with metadata. But getting the incantation right with CBR encoding, mono downmix, ID3v2 tags, embedded artwork, correct lowpass filtering-requires a sprawling command line you'll never remember. And if your podcast uses Hugo? Now you're scripting frontmatter parsing on top.
+FFmpeg's CLI can absolutely encode podcast-ready audio with metadata. But getting the incantation right for CBR encoding, mono downmix, format-native tags, embedded artwork, and correct lowpass filtering requires a sprawling command line you'll never remember. Switch from MP3 to AAC and every option changes. Add Hugo frontmatter parsing on top and you're writing a script.
 
-Jivedrop wraps the fiddly bits into a single binary that speaks Hugo natively. Drop your WAV, point at your episode markdown, get a distribution-ready MP3 with duration and byte counts ready to paste back into your frontmatter.
+Jivedrop wraps the fiddly bits into a single binary that speaks Hugo natively. Drop your WAV, point at your episode markdown, pick your format, and get distribution-ready output with duration and byte counts ready to paste back into your frontmatter.

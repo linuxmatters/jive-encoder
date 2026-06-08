@@ -12,9 +12,9 @@ type FileStats struct {
 }
 
 // GetFileStats returns file statistics using a pre-calculated duration.
-// This avoids re-opening the MP3 file with FFmpeg to extract duration.
-func GetFileStats(mp3Path string, durationSecs int64) (*FileStats, error) {
-	fileInfo, err := os.Stat(mp3Path)
+// This avoids re-opening the encoded file with FFmpeg to extract duration.
+func GetFileStats(outputPath string, durationSecs int64) (*FileStats, error) {
+	fileInfo, err := os.Stat(outputPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat file: %w", err)
 	}

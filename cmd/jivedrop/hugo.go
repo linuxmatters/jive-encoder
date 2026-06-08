@@ -108,6 +108,10 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 }
 
 // PostEncode displays podcast statistics and handles frontmatter comparison and update prompting.
+// stats describe the single encoded file regardless of format (duration seconds + byte size),
+// so write-back applies unchanged for mp3, opus, or aac. The prompt-on-change guard shows the
+// new podcast_duration/podcast_bytes and waits for confirmation before writing, so a non-mp3
+// encode cannot silently overwrite values for a different enclosure.
 func (h *HugoWorkflow) PostEncode(stats *encoder.FileStats) error {
 	printPodcastStats(stats)
 
