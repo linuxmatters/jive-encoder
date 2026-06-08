@@ -39,6 +39,35 @@ type EpisodeMetadata struct {
 	PodcastBytes    int64     `yaml:"podcast_bytes"`
 }
 
+// UnmarshalYAML decodes EpisodeMetadata while accepting either the capitalised
+// "Date" key (used by all existing frontmatter) or a lowercase "date" key.
+// yaml.v3 matches struct tags case-sensitively, so without this a lowercase
+// "date:" would silently parse to the zero time.Time and produce a wrong ID3
+// TDRC tag with no error surfaced. "Date" takes precedence when both appear.
+func (m *EpisodeMetadata) UnmarshalYAML(value *yaml.Node) error {
+	// Alias avoids infinite recursion into this method while reusing the tags.
+	type rawMetadata EpisodeMetadata
+	var raw rawMetadata
+	if err := value.Decode(&raw); err != nil {
+		return fmt.Errorf("failed to decode episode metadata: %w", err)
+	}
+
+	// rawMetadata only matches "Date"; decode the lowercase fallback separately.
+	var lowercase struct {
+		Date time.Time `yaml:"date"`
+	}
+	if err := value.Decode(&lowercase); err != nil {
+		return fmt.Errorf("failed to decode episode date: %w", err)
+	}
+
+	if raw.Date.IsZero() {
+		raw.Date = lowercase.Date
+	}
+
+	*m = EpisodeMetadata(raw)
+	return nil
+}
+
 // ParseEpisodeMetadata extracts metadata from a Hugo markdown file
 func ParseEpisodeMetadata(markdownPath string) (*EpisodeMetadata, error) {
 	content, err := os.ReadFile(markdownPath)

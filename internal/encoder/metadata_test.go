@@ -167,6 +167,71 @@ Episode content.
 	}
 }
 
+// TestParseEpisodeMetadata_DateKeyCasing verifies the frontmatter parser
+// accepts both the capitalised "Date" key and a lowercase "date" key, with
+// "Date" winning when both are present.
+func TestParseEpisodeMetadata_DateKeyCasing(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		wantDate string
+	}{
+		{
+			name: "capitalised Date",
+			content: `---
+episode: "67"
+title: "Test Episode"
+Date: 2025-11-09T00:00:00Z
+episode_image: "/img/test.png"
+---
+`,
+			wantDate: "2025-11",
+		},
+		{
+			name: "lowercase date",
+			content: `---
+episode: "67"
+title: "Test Episode"
+date: 2024-03-15T00:00:00Z
+episode_image: "/img/test.png"
+---
+`,
+			wantDate: "2024-03",
+		},
+		{
+			name: "both keys, Date wins",
+			content: `---
+episode: "67"
+title: "Test Episode"
+Date: 2025-11-09T00:00:00Z
+date: 2024-03-15T00:00:00Z
+episode_image: "/img/test.png"
+---
+`,
+			wantDate: "2025-11",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "test.md")
+			if err := os.WriteFile(tmpFile, []byte(tt.content), 0o644); err != nil {
+				t.Fatalf("Failed to create test file: %v", err)
+			}
+
+			meta, err := ParseEpisodeMetadata(tmpFile)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if got := FormatDateForID3(meta.Date); got != tt.wantDate {
+				t.Errorf("Expected date %q, got %q", tt.wantDate, got)
+			}
+		})
+	}
+}
+
 func TestParseEpisodeNumber(t *testing.T) {
 	tests := []struct {
 		name    string
