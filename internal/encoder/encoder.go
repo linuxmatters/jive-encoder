@@ -580,8 +580,8 @@ func (e *Encoder) GetDurationSecs() int64 {
 	if sampleRate <= 0 {
 		return 0
 	}
-	// nextPts tracks total samples written to the encoder
-	return e.nextPts / int64(sampleRate)
+	// nextPts tracks total samples written to the encoder; round to nearest second
+	return (e.nextPts + int64(sampleRate)/2) / int64(sampleRate)
 }
 
 // Bitrate returns the output MP3 bitrate in kbps for the configured channel
