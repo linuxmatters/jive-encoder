@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image/png"
+	"strings"
 	"sync/atomic"
 	"unsafe"
 
@@ -763,13 +764,31 @@ func (e *Encoder) GetDurationSecs() int64 {
 	return (e.nextPts + int64(sampleRate)/2) / int64(sampleRate)
 }
 
-// Bitrate returns the output MP3 bitrate in kbps for the configured channel
-// mode: 192 for stereo, 112 for mono.
+// Bitrate returns the output bitrate in kbps for the configured channel mode,
+// read from the active format preset (CBR for MP3/AAC, the VBR target for Opus).
 func (e *Encoder) Bitrate() int {
 	if e.stereo {
-		return StereoBitrate / 1000
+		return e.preset.stereoBitrate / 1000
 	}
-	return MonoBitrate / 1000
+	return e.preset.monoBitrate / 1000
+}
+
+// FormatLabel returns the uppercase format name for display (e.g. "MP3",
+// "AAC", "OPUS").
+func (e *Encoder) FormatLabel() string {
+	return strings.ToUpper(e.preset.name)
+}
+
+// OutputSampleRate returns the output sample rate in Hz, read from the active
+// format preset (44.1 kHz for MP3/AAC, 48 kHz for Opus).
+func (e *Encoder) OutputSampleRate() int {
+	return e.preset.sampleRate
+}
+
+// VBR reports whether the active format encodes at a variable bitrate. The UI
+// labels the bitrate "VBR" when true and "CBR" otherwise.
+func (e *Encoder) VBR() bool {
+	return e.preset.vbr
 }
 
 // ChannelMode returns the output channel mode label: "stereo" or "mono".

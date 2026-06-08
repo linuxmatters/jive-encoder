@@ -75,6 +75,9 @@ type EncodeModel struct {
 	inputChannels int
 	outputMode    string // "mono" or "stereo"
 	outputBitrate int
+	outputFormat  string // uppercase format label (e.g. "MP3", "AAC", "OPUS")
+	outputRate    int    // output sample rate in Hz
+	outputVBR     bool   // true when the format is VBR (Opus), false for CBR
 
 	// Completion state
 	complete  bool
@@ -111,6 +114,9 @@ func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, 
 		inputChannels:  channels,
 		outputMode:     outputMode,
 		outputBitrate:  outputBitrate,
+		outputFormat:   enc.FormatLabel(),
+		outputRate:     enc.OutputSampleRate(),
+		outputVBR:      enc.VBR(),
 		nonInteractive: nonInteractive,
 		anim: animState{
 			spring: harmonica.NewSpring(harmonica.FPS(60), 6.0, 0.7),
@@ -192,7 +198,7 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		// Success: Encode finished before any cancel took effect. Clear a late
-		// Ctrl+C flag so the completed MP3 is kept, then settle the spring to 100%
+		// Ctrl+C flag so the completed file is kept, then settle the spring to 100%
 		// before quitting, keeping the bar visible via the settling → progressView
 		// route.
 		m.cancelled = false

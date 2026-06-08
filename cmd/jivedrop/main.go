@@ -52,8 +52,8 @@ var CLI struct {
 	OutputPath string `help:"Output file or directory path"`
 
 	// Encoding options
-	Format  string `help:"Output format" enum:"mp3,opus,aac" default:"mp3"`
-	Stereo  bool   `help:"Encode as stereo at 192kbps (default: mono at 112kbps)"`
+	Format  string `help:"Output format: mp3, aac, or opus" enum:"mp3,opus,aac" default:"mp3"`
+	Stereo  bool   `help:"Encode as stereo at the format's stereo bitrate (default: mono)"`
 	Version bool   `help:"Show version information"`
 }
 
@@ -169,11 +169,11 @@ func printEncodePlan(req EncodeRequest, enc *encoder.Encoder) {
 		cli.PrintLabelValue("• Episode markdown:", req.EpisodeMD)
 	}
 	cli.PrintLabelValue("• Output:", req.OutputPath)
+	channelLabel := "Mono"
 	if req.Stereo {
-		cli.PrintLabelValue("• Encoding mode:", "Stereo 192kbps")
-	} else {
-		cli.PrintLabelValue("• Encoding mode:", "Mono 112kbps")
+		channelLabel = "Stereo"
 	}
+	cli.PrintLabelValue("• Encoding mode:", fmt.Sprintf("%s %dkbps", channelLabel, enc.Bitrate()))
 
 	sampleRate, channels, format := enc.GetInputInfo()
 	channelMode := encoder.FormatChannelMode(channels)
@@ -182,7 +182,7 @@ func printEncodePlan(req EncodeRequest, enc *encoder.Encoder) {
 
 // encodeOutcome reports how the Bubbletea encoding UI finished. err is non-nil
 // when the run failed; partialFile is true when that failure left a truncated
-// MP3 that the caller must discard (cancel or encode error, but not a UI error).
+// output file that the caller must discard (cancel or encode error, but not a UI error).
 type encodeOutcome struct {
 	err         error
 	partialFile bool
@@ -207,7 +207,7 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 
 	finalModel, err := p.Run()
 	if err != nil {
-		// A UI failure leaves no truncated MP3 to discard.
+		// A UI failure leaves no truncated output file to discard.
 		return encodeOutcome{err: fmt.Errorf("UI error: %w", err)}
 	}
 
@@ -215,7 +215,7 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 		if encModel.Cancelled() {
 			// User interrupted with Ctrl+C. Encode has already returned (the model
 			// quits only after EncodingCompleteMsg), so the caller's deferred Close
-			// is safe. Report the interrupt; the caller discards the truncated MP3.
+			// is safe. Report the interrupt; the caller discards the truncated file.
 			return encodeOutcome{err: fmt.Errorf("encoding cancelled"), partialFile: true}
 		}
 		if encModel.Error() != nil {
@@ -237,7 +237,7 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 
 // embedMetadata finishes the job after a successful encode: tags and cover art
 // are written by the encoder during Initialize/Encode, so this only extracts
-// file statistics. The returned partial flag is true when the MP3 was written
+// file statistics. The returned partial flag is true when the output file was written
 // successfully but stats extraction failed; in that case stats is nil.
 func embedMetadata(req EncodeRequest, enc *encoder.Encoder) (stats *encoder.FileStats, partial bool) {
 	cli.PrintSuccessLabel("Complete:", req.OutputPath)
@@ -256,7 +256,7 @@ func embedMetadata(req EncodeRequest, enc *encoder.Encoder) (stats *encoder.File
 // encode orchestrates the full encoding pipeline: print the plan, create and
 // initialise the encoder, scale cover art concurrently, run the Bubbletea UI,
 // handle the outcome, then embed metadata and extract statistics. The returned
-// partial flag is true when the MP3 was written successfully but stats
+// partial flag is true when the output file was written successfully but stats
 // extraction failed; in that case stats is nil and error is nil.
 func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err error) {
 	// The encoder now embeds the cover as an attached-picture stream during
@@ -308,7 +308,7 @@ func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err erro
 	outcome := runEncodeUI(enc, enc.ChannelMode(), enc.Bitrate())
 	if outcome.err != nil {
 		if outcome.partialFile {
-			// Discard the truncated MP3 so a cancelled or failed run leaves no
+			// Discard the truncated output file so a cancelled or failed run leaves no
 			// partial file.
 			os.Remove(req.OutputPath)
 		}

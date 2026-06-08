@@ -1,3 +1,6 @@
 .direnv
 /jivedrop
 testdata/
+*.mp3
+*.opus
+*.m4a

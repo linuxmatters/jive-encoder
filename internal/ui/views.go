@@ -25,7 +25,7 @@ func progressView(m *EncodeModel) string {
 		return frameStyle.Render(b.String())
 	}
 
-	fmt.Fprintf(&b, "%s %s", spinnerGlyph, headerStyle.Render("Encoding to MP3..."))
+	fmt.Fprintf(&b, "%s %s", spinnerGlyph, headerStyle.Render(fmt.Sprintf("Encoding to %s...", m.outputFormat)))
 	b.WriteString("\n")
 
 	// Clamp the displayed fraction to [0,1] so an under-damped spring
@@ -68,9 +68,15 @@ func progressView(m *EncodeModel) string {
 		encoder.FormatChannelMode(m.inputChannels),
 	)
 
-	outputSpec := fmt.Sprintf("MP3 %.1f㎑ %s CBR %dkbps",
-		44.1,
+	rateMode := "CBR"
+	if m.outputVBR {
+		rateMode = "VBR"
+	}
+	outputSpec := fmt.Sprintf("%s %.1f㎑ %s %s %dkbps",
+		m.outputFormat,
+		float64(m.outputRate)/1000.0,
 		m.outputMode,
+		rateMode,
 		m.outputBitrate,
 	)
 
