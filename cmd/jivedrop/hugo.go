@@ -65,7 +65,6 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 	comment := HugoDefaultComment
 	date := encoder.FormatDateForID3(metadata.Date)
 
-	// Allow flag overrides
 	if h.opts.Artist != "" {
 		artist = h.opts.Artist
 	}

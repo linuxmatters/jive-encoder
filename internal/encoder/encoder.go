@@ -339,7 +339,6 @@ func (e *Encoder) Encode(progressCb ProgressCallback) error {
 
 	outStream := e.ofmtCtx.Streams().Get(0)
 
-	// Main decoding loop
 	for {
 		// Observe cancellation before the next cgo call so Encode returns while
 		// the AV contexts are still valid, ahead of any Close.
