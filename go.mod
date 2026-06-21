@@ -10,7 +10,7 @@ require (
 	github.com/charmbracelet/harmonica v0.2.0
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/linuxmatters/ffmpeg-statigo v0.0.0-00010101000000-000000000000
-	golang.org/x/image v0.42.0
+	golang.org/x/image v0.43.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
