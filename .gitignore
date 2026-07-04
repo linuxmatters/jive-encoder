@@ -1,5 +1,5 @@
 .direnv
-/jivedrop
+/jive-encoder
 testdata/
 *.mp3
 *.opus

@@ -2,7 +2,7 @@ package ui
 
 import (
 	"charm.land/lipgloss/v2"
-	"github.com/linuxmatters/jivedrop/internal/cli"
+	"github.com/linuxmatters/jive-encoder/internal/cli"
 )
 
 // Import shared colour palette from cli package

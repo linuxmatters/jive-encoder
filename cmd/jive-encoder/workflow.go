@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/linuxmatters/jivedrop/internal/cli"
-	"github.com/linuxmatters/jivedrop/internal/encoder"
-	"github.com/linuxmatters/jivedrop/internal/id3"
+	"github.com/linuxmatters/jive-encoder/internal/cli"
+	"github.com/linuxmatters/jive-encoder/internal/encoder"
+	"github.com/linuxmatters/jive-encoder/internal/id3"
 )
 
 // Workflow defines the mode-specific operations for Hugo and Standalone workflows.

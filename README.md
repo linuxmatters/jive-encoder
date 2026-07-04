@@ -1,14 +1,16 @@
-# Jivedrop 🪩
+# Jive Encoder 🪩
+
+*Formerly known as Jivedrop.*
 
 > Drop your podcast .wav into a shiny MP3, AAC, or Opus with metadata, cover art, and all
 
 ## The Groove
 
-Jivedrop takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready podcast files with optimised encoding, embedded artwork, and complete metadata. Choose MP3 for universal compatibility, AAC for Apple-recommended quality, or Opus for modern Android and web delivery. One command, distribution-ready output.
+Jive Encoder takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready podcast files with optimised encoding, embedded artwork, and complete metadata. Choose MP3 for universal compatibility, AAC for Apple-recommended quality, or Opus for modern Android and web delivery. One command, distribution-ready output.
 
 ### Example Output
 
-<div align="center"><img alt="Jivedrop Demo" src=".github/jivedrop.gif" width="600" /></div>
+<div align="center"><img alt="Jive Encoder Demo" src=".github/jive-encoder.gif" width="600" /></div>
 
 ### What's Cooking
 
@@ -33,7 +35,7 @@ Jivedrop takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready podcast
 
 ### Hugo Mode (Integrated Workflow)
 
-For podcasts using Hugo static site generator and the something like [Castanet](https://github.com/mattstratton/castanet), Jivedrop reads metadata from episode markdown:
+For podcasts using Hugo static site generator and the something like [Castanet](https://github.com/mattstratton/castanet), Jive Encoder reads metadata from episode markdown:
 
 **Hugo mode automatically:**
 - Reads episode title and number from frontmatter
@@ -44,13 +46,13 @@ For podcasts using Hugo static site generator and the something like [Castanet](
 
 ```bash
 # Basic encoding (MP3 by default)
-jivedrop LMP67.flac episode/67.md
+jive-encoder LMP67.flac episode/67.md
 
 # Encode as AAC for Apple-recommended distribution
-jivedrop LMP67.flac episode/67.md --format aac
+jive-encoder LMP67.flac episode/67.md --format aac
 
 # Override Hugo defaults
-jivedrop LMP67.flac episode/67.md --artist "Ubuntu Podcast" --comment "https://ubuntupodcast.org"
+jive-encoder LMP67.flac episode/67.md --artist "Ubuntu Podcast" --comment "https://ubuntupodcast.org"
 ```
 ### Standalone Mode (Universal Workflow)
 
@@ -64,20 +66,20 @@ For podcasts without Hugo, specify metadata via flags:
 
 ```bash
 # Minimal (title, episode number, and cover art required)
-jivedrop audio.flac \
+jive-encoder audio.flac \
   --title "Terminal Full of Sparkles" \
   --num 66 \
   --cover artwork.png
 
 # Encode as Opus (note: Opus is not accepted by Apple Podcasts)
-jivedrop audio.flac \
+jive-encoder audio.flac \
   --title "Terminal Full of Sparkles" \
   --num 66 \
   --cover artwork.png \
   --format opus
 
 # Full metadata
-jivedrop audio.flac \
+jive-encoder audio.flac \
   --title "Terminal Full of Sparkles" \
   --num 66 \
   --artist "Linux Matters" \
@@ -93,9 +95,9 @@ jivedrop audio.flac \
 ```
 Usage:
   Hugo mode:
-    jivedrop <audio-file> <episode-md> [flags]
+    jive-encoder <audio-file> <episode-md> [flags]
   Standalone mode:
-    jivedrop <audio-file> --title TEXT --num NUMBER --cover PATH [flags]
+    jive-encoder <audio-file> --title TEXT --num NUMBER --cover PATH [flags]
 
 
 Arguments:
@@ -155,7 +157,7 @@ Same text fields as MP3. Cover art is not embedded in Opus files.
 
 ## Build
 
-Jivedrop uses [ffmpeg-statigo](https://github.com/linuxmatters/ffmpeg-statigo) for FFmpeg static bindings.
+Jive Encoder uses [ffmpeg-statigo](https://github.com/linuxmatters/ffmpeg-statigo) for FFmpeg static bindings.
 
 ```bash
 # Setup or update ffmpeg-statigo submodule and library
@@ -167,8 +169,8 @@ just test         # Run tests
 just test-encoder # Test encoder
 ```
 
-## Why Jivedrop?
+## Why Jive Encoder?
 
 FFmpeg's CLI can absolutely encode podcast-ready audio with metadata. But getting the incantation right for CBR encoding, mono downmix, format-native tags, embedded artwork, and correct lowpass filtering requires a sprawling command line you'll never remember. Switch from MP3 to AAC and every option changes. Add Hugo frontmatter parsing on top and you're writing a script.
 
-Jivedrop wraps the fiddly bits into a single binary that speaks Hugo natively. Drop your WAV, point at your episode markdown, pick your format, and get distribution-ready output with duration and byte counts ready to paste back into your frontmatter.
+Jive Encoder wraps the fiddly bits into a single binary that speaks Hugo natively. Drop your WAV, point at your episode markdown, pick your format, and get distribution-ready output with duration and byte counts ready to paste back into your frontmatter.

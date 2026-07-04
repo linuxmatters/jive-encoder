@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/linuxmatters/jivedrop/internal/encoder"
+	"github.com/linuxmatters/jive-encoder/internal/encoder"
 )
 
 // newTestModel builds a minimal EncodeModel for exercising Update in isolation.

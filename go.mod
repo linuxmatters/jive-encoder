@@ -1,4 +1,4 @@
-module github.com/linuxmatters/jivedrop
+module github.com/linuxmatters/jive-encoder
 
 go 1.26
 

@@ -55,9 +55,9 @@
 #   Hide                            Hide the subsequent commands from the output
 #   Show                            Show the subsequent commands in the output
 
-Output .github/jivedrop.gif
+Output .github/jive-encoder.gif
 
-Require ./jivedrop
+Require ./jive-encoder
 
 Set Shell "fish"
 Set FontSize 13
@@ -69,9 +69,9 @@ Set WindowBarSize 32
 Set TypingSpeed 27ms
 Set Theme catppuccin-mocha
 
-Type "./jivedrop testdata/LMP67.flac testdata/67.md" Sleep 250ms  Enter
+Type "./jive-encoder testdata/LMP67.flac testdata/67.md" Sleep 250ms  Enter
 Sleep 4s
-#Type "./jivedrop testdata/LMP80.flac testdata/80.md" Sleep 250ms  Enter
+#Type "./jive-encoder testdata/LMP80.flac testdata/80.md" Sleep 250ms  Enter
 #Sleep 10s
 
 Type "n" Sleep 250ms  Enter

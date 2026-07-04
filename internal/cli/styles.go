@@ -53,7 +53,7 @@ var (
 
 // PrintVersion prints version information
 func PrintVersion(version string) {
-	fmt.Println(TitleStyle.Render("Jivedrop 🪩"))
+	fmt.Println(TitleStyle.Render("Jive Encoder 🪩"))
 	fmt.Printf("%s %s\n", KeyStyle.Render("Version:"), ValueStyle.Render(version))
 	fmt.Println()
 }

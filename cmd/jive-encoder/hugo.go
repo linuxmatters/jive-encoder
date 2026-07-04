@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/linuxmatters/jivedrop/internal/cli"
-	"github.com/linuxmatters/jivedrop/internal/encoder"
-	"github.com/linuxmatters/jivedrop/internal/id3"
+	"github.com/linuxmatters/jive-encoder/internal/cli"
+	"github.com/linuxmatters/jive-encoder/internal/encoder"
+	"github.com/linuxmatters/jive-encoder/internal/id3"
 )
 
 // Hugo mode metadata defaults for the Linux Matters podcast.

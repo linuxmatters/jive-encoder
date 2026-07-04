@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/linuxmatters/jivedrop/internal/id3"
+	"github.com/linuxmatters/jive-encoder/internal/id3"
 )
 
 // TestNewFormatResolution verifies that New defaults an empty Format to the

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/linuxmatters/jivedrop/internal/encoder"
+	"github.com/linuxmatters/jive-encoder/internal/encoder"
 )
 
 // progressView renders the encoding progress UI
