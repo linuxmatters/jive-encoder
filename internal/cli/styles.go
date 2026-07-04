@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"charm.land/lipgloss/v2"
@@ -14,9 +15,13 @@ const AppTitle = "Jive Encoder 🪩"
 var (
 	// Colour-profile-aware writers: degrade colour for non-TTY output,
 	// honouring NO_COLOR and TERM
-	stdout = colorprofile.NewWriter(os.Stdout, os.Environ())
-	stderr = colorprofile.NewWriter(os.Stderr, os.Environ())
+	stdout = newColourWriter(os.Stdout)
+	stderr = newColourWriter(os.Stderr)
 )
+
+func newColourWriter(w io.Writer) *colorprofile.Writer {
+	return colorprofile.NewWriter(w, os.Environ())
+}
 
 var (
 	// Title style - bold blue with disco ball emoji

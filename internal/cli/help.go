@@ -2,12 +2,10 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/kong"
-	"github.com/charmbracelet/colorprofile"
 )
 
 // Custom help styles using shared disco ball palette 🪩
@@ -103,7 +101,7 @@ func StyledHelpPrinter(options kong.HelpOptions, ctx *kong.Context) error {
 
 	sb.WriteString("\n")
 	// Degrade colour for non-TTY output, honouring NO_COLOR and TERM
-	w := colorprofile.NewWriter(ctx.Stdout, os.Environ())
+	w := newColourWriter(ctx.Stdout)
 	fmt.Fprint(w, sb.String())
 	return nil
 }

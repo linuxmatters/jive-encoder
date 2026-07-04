@@ -173,16 +173,7 @@ func ResolveCoverArtPath(markdownPath, episodeImage string) (string, error) {
 	// A "./" prefix means the image sits beside the markdown file.
 	if after, ok := strings.CutPrefix(episodeImage, "./"); ok {
 		coverPath := filepath.Join(markdownDir, after)
-		coverPath, err := filepath.Abs(coverPath)
-		if err != nil {
-			return "", fmt.Errorf("failed to resolve cover art path: %w", err)
-		}
-
-		if _, err := os.Stat(coverPath); err != nil {
-			return "", fmt.Errorf("cover art not found: %s", coverPath)
-		}
-
-		return coverPath, nil
+		return verifyCoverArtPath(coverPath)
 	}
 
 	// Otherwise the path is rooted at the Hugo site, served from static/.
@@ -192,7 +183,11 @@ func ResolveCoverArtPath(markdownPath, episodeImage string) (string, error) {
 	}
 
 	coverPath := filepath.Join(projectRoot, "static", strings.TrimPrefix(episodeImage, "/"))
-	coverPath, err = filepath.Abs(coverPath)
+	return verifyCoverArtPath(coverPath)
+}
+
+func verifyCoverArtPath(coverPath string) (string, error) {
+	coverPath, err := filepath.Abs(coverPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve cover art path: %w", err)
 	}

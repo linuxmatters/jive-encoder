@@ -52,18 +52,16 @@ var CLI struct {
 }
 
 // detectMode reports whether the invocation is a Hugo or Standalone workflow.
-func detectMode(audioFile, episodeMD string) WorkflowMode {
-	// With no audio file the mode is irrelevant; run() shows help and exits.
-	if audioFile == "" {
-		return HugoMode
-	}
-
-	// A .md second argument signals Hugo mode.
-	if episodeMD != "" && strings.HasSuffix(strings.ToLower(episodeMD), ".md") {
+func detectMode(episodeMD string) WorkflowMode {
+	if isMarkdownPath(episodeMD) {
 		return HugoMode
 	}
 
 	return StandaloneMode
+}
+
+func isMarkdownPath(p string) bool {
+	return p != "" && strings.HasSuffix(strings.ToLower(p), ".md")
 }
 
 // sanitiseForFilename lowercases the string, replaces spaces with hyphens, and
@@ -318,7 +316,7 @@ func run() int {
 		return 0
 	}
 
-	mode := detectMode(CLI.AudioFile, CLI.EpisodeMD)
+	mode := detectMode(CLI.EpisodeMD)
 	opts := CLIOptions{
 		EpisodeMD: CLI.EpisodeMD,
 		Num:       CLI.Num,

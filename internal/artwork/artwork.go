@@ -60,23 +60,20 @@ func ScaleCoverArt(inputPath string) ([]byte, error) {
 		return data, nil
 	}
 
-	var finalImg image.Image
+	src := img
 	if needsScaling {
 		dst := image.NewRGBA(image.Rect(0, 0, targetSize, targetSize))
 
 		// Bilinear matches the scaler used by Jivefire thumbnail generation.
 		draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
 
-		finalImg = dst
-	} else {
-		// Reaches here only for an in-spec non-PNG, re-encoded below.
-		finalImg = img
+		src = dst
 	}
 
 	// Normalise every re-encoded path to PNG for a consistent attached-picture payload.
 	var buf bytes.Buffer
 
-	err = png.Encode(&buf, finalImg)
+	err = png.Encode(&buf, src)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode scaled image: %w", err)
 	}
