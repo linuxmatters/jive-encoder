@@ -36,8 +36,8 @@ func TestNewFormatResolution(t *testing.T) {
 		if enc.preset.name != "mp3" {
 			t.Fatalf("expected mp3 preset, got %q", enc.preset.name)
 		}
-		if enc.outStreamIndex != -1 {
-			t.Fatalf("expected outStreamIndex -1, got %d", enc.outStreamIndex)
+		if enc.output.audioStreamIndex != -1 {
+			t.Fatalf("expected audioStreamIndex -1, got %d", enc.output.audioStreamIndex)
 		}
 	})
 }
@@ -543,7 +543,7 @@ func TestEncoder_InvalidInput(t *testing.T) {
 	}
 }
 
-// TestEncoder_OutputExists tests behavior when output file already exists
+// TestEncoder_OutputExists tests behaviour when output file already exists
 func TestEncoder_OutputExists(t *testing.T) {
 	inputPath := "../../testdata/LMP0.flac"
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
@@ -715,7 +715,7 @@ func TestEncoder_ProgressCallback(t *testing.T) {
 		t.Fatalf("Failed to initialize encoder: %v", err)
 	}
 
-	totalSamples := enc.totalSamples
+	totalSamples := enc.input.totalSamples
 	if totalSamples == 0 {
 		t.Skip("Could not determine total samples from input file")
 	}
