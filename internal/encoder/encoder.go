@@ -468,7 +468,7 @@ func (e *Encoder) initFilter() error {
 		return fmt.Errorf("failed to create buffer sink: %w", err)
 	}
 
-	// Parse filter graph - use aresample for format/rate/channel conversion
+	// Parse filter graph. Uses aresample for format, rate, and channel conversion.
 	outputs := ffmpeg.AVFilterInoutAlloc()
 	inputs := ffmpeg.AVFilterInoutAlloc()
 	defer ffmpeg.AVFilterInoutFree(&outputs)

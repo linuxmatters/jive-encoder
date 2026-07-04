@@ -16,8 +16,8 @@ type formatPreset struct {
 	// encoderName, when set, names a specific encoder to try before falling
 	// back to the codec ID (e.g. libopus).
 	encoderName string
-	// monoBitrate and stereoBitrate are the constant bitrates in bits per
-	// second for each channel mode.
+	// monoBitrate and stereoBitrate are the target bitrates in bits per second
+	// for each channel mode (constant for MP3/AAC, the VBR target for Opus).
 	monoBitrate   int
 	stereoBitrate int
 	// vbr selects variable bitrate encoding when true.

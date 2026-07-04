@@ -288,7 +288,7 @@ func (m *EncodeModel) calculateProgress() float64 {
 	return float64(m.samplesProcessed) / float64(m.totalSamples) * 100
 }
 
-// calculateSpeed returns encoding speed (e.g., "101.2x realtime")
+// calculateSpeed returns the encoding speed as a realtime multiple (e.g. 101.2).
 func (m *EncodeModel) calculateSpeed() float64 {
 	if m.inputRate == 0 {
 		return 0
@@ -299,10 +299,8 @@ func (m *EncodeModel) calculateSpeed() float64 {
 		return 0
 	}
 
-	// Calculate audio duration processed (in seconds)
+	// Speed is audio seconds decoded divided by wall-clock seconds elapsed.
 	audioProcessed := float64(m.samplesProcessed) / float64(m.inputRate)
-
-	// Speed = audio duration / wall clock time
 	return audioProcessed / elapsed
 }
 
@@ -315,8 +313,8 @@ func (m *EncodeModel) calculateTimeRemaining() time.Duration {
 
 	elapsed := time.Since(m.startTime)
 
-	// Use progress percentage for accurate estimation
-	// If we've completed X%, the remaining (100-X)% will take proportionally longer
+	// Extrapolate linearly from progress so far: elapsed time scaled to 100%
+	// gives the estimated total, minus what has already elapsed.
 	totalEstimated := float64(elapsed) * 100.0 / progress
 	remaining := time.Duration(totalEstimated) - elapsed
 
