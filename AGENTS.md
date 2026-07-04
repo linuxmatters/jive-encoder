@@ -25,7 +25,7 @@ just clean      # Remove build artifacts and test outputs (*.mp3)
 ## Architecture
 
 ```
-cmd/jivedrop/
+cmd/jive-encoder/
   main.go                # CLI entry, mode detection (Hugo vs Standalone), argument validation
   workflow.go            # Workflow interface + CLIOptions struct passed to each workflow
   hugo.go                # Hugo-mode workflow (frontmatter-driven)
@@ -52,8 +52,8 @@ third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.1 static bindings
 
 ### Dual-Mode CLI
 
-- **Hugo mode**: `jivedrop audio.flac episode.md`: reads metadata from Hugo frontmatter
-- **Standalone mode**: `jivedrop audio.flac --title X --num N --cover Y`: explicit flags
+- **Hugo mode**: `jive-encoder audio.flac episode.md`: reads metadata from Hugo frontmatter
+- **Standalone mode**: `jive-encoder audio.flac --title X --num N --cover Y`: explicit flags
 - Mode detection: second argument ending in `.md` triggers Hugo mode
 - `--format mp3|opus|aac` selects one format per invocation (single value, default `mp3`); Kong rejects unknown values at parse time. Each invocation emits one file with the preset extension
 
@@ -61,7 +61,7 @@ third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.1 static bindings
 
 - Required fields in episode markdown: `episode`, `title`, `episode_image`
 - `episode` must be a non-empty, non-negative integer (validated by `encoder.ParseEpisodeNumber`); same rule applies to the standalone `--num` flag
-- After encoding, Jivedrop calculates `podcast_duration` and `podcast_bytes`
+- After encoding, Jive Encoder calculates `podcast_duration` and `podcast_bytes`
 - Write-back is format-agnostic: the stats reflect the single encoded file, whatever format was chosen
 - Prompts user to update frontmatter if values differ or are missing
 

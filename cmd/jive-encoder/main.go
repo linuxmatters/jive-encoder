@@ -9,10 +9,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/kong"
 	"github.com/charmbracelet/x/term"
-	"github.com/linuxmatters/jivedrop/internal/cli"
-	"github.com/linuxmatters/jivedrop/internal/encoder"
-	"github.com/linuxmatters/jivedrop/internal/id3"
-	"github.com/linuxmatters/jivedrop/internal/ui"
+	"github.com/linuxmatters/jive-encoder/internal/cli"
+	"github.com/linuxmatters/jive-encoder/internal/encoder"
+	"github.com/linuxmatters/jive-encoder/internal/id3"
+	"github.com/linuxmatters/jive-encoder/internal/ui"
 )
 
 // version is set via ldflags at build time: "dev" for local builds, the git
@@ -325,7 +325,7 @@ func main() {
 
 func run() int {
 	ctx := kong.Parse(&CLI,
-		kong.Name("jivedrop"),
+		kong.Name("jive-encoder"),
 		kong.Description("Drop the mix, ship the show—metadata, cover art, and all."),
 		kong.Vars{"version": version},
 		kong.UsageOnError(),

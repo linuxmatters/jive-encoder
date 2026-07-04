@@ -212,15 +212,15 @@ jobs:
         run: |
           VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Building jivedrop $VERSION for ${{ matrix.os }}/${{ matrix.arch }}"
+          echo "Building jive-encoder $VERSION for ${{ matrix.os }}/${{ matrix.arch }}"
       - name: Build binary
         run: |
-          go build -ldflags="-X main.version=${{ steps.version.outputs.version }}" -o jivedrop-${{ matrix.os }}-${{ matrix.arch }} ./cmd/jivedrop
+          go build -ldflags="-X main.version=${{ steps.version.outputs.version }}" -o jive-encoder-${{ matrix.os }}-${{ matrix.arch }} ./cmd/jive-encoder
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: jivedrop-${{ matrix.os }}-${{ matrix.arch }}
-          path: jivedrop-${{ matrix.os }}-${{ matrix.arch }}
+          name: jive-encoder-${{ matrix.os }}-${{ matrix.arch }}
+          path: jive-encoder-${{ matrix.os }}-${{ matrix.arch }}
 
   release:
     name: Release 📦
@@ -257,12 +257,12 @@ jobs:
 
           ```bash
           # Linux (amd64)
-          chmod +x jivedrop-linux-amd64
-          sudo mv jivedrop-linux-amd64 /usr/local/bin/jivedrop
+          chmod +x jive-encoder-linux-amd64
+          sudo mv jive-encoder-linux-amd64 /usr/local/bin/jive-encoder
 
           # macOS (Apple Silicon)
-          chmod +x jivedrop-darwin-arm64
-          sudo mv jivedrop-darwin-arm64 /usr/local/bin/jivedrop
+          chmod +x jive-encoder-darwin-arm64
+          sudo mv jive-encoder-darwin-arm64 /usr/local/bin/jive-encoder
           ```
 
           ## Checksums
@@ -275,7 +275,7 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: artifacts
-          pattern: jivedrop-*
+          pattern: jive-encoder-*
           merge-multiple: false
       - name: Create release
         uses: softprops/action-gh-release@v3
@@ -283,8 +283,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          name: Jivedrop ${{ steps.version.outputs.version }}
+          name: Jive Encoder ${{ steps.version.outputs.version }}
           body_path: CHANGELOG.md
           draft: false
           prerelease: false
-          files: artifacts/jivedrop-*/jivedrop-*
+          files: artifacts/jive-encoder-*/jive-encoder-*

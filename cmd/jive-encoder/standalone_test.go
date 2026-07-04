@@ -263,7 +263,7 @@ func TestStandaloneWorkflowValidate_Integration(t *testing.T) {
 			num:         "66",
 			cover:       "artwork.png",
 			wantErr:     false,
-			description: "User runs: jivedrop audio.flac --title 'Terminal Full of Sparkles' --num 66 --cover artwork.png",
+			description: "User runs: jive-encoder audio.flac --title 'Terminal Full of Sparkles' --num 66 --cover artwork.png",
 		},
 		{
 			name:        "common mistake: forgot --title flag",

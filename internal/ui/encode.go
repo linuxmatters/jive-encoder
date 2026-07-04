@@ -9,7 +9,7 @@ import (
 	"charm.land/bubbles/v2/progress"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/harmonica"
-	"github.com/linuxmatters/jivedrop/internal/encoder"
+	"github.com/linuxmatters/jive-encoder/internal/encoder"
 )
 
 // ProgressUpdate represents a progress update from the encoder

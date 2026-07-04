@@ -1,4 +1,4 @@
-# Jivedrop - Just Commands
+# Jive Encoder - Just Commands
 
 # List commands
 default:
@@ -86,30 +86,30 @@ setup:
         echo "Don't forget to commit: git commit -m 'chore: update ffmpeg-statigo to $TAG'"
     fi
 
-# Build jivedrop
+# Build jive-encoder
 build: _check-submodule
     #!/usr/bin/env bash
     VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
-    echo "Building jivedrop version: $VERSION"
-    CGO_ENABLED=1 go build -ldflags="-X main.version=$VERSION" -o jivedrop ./cmd/jivedrop
+    echo "Building jive-encoder version: $VERSION"
+    CGO_ENABLED=1 go build -ldflags="-X main.version=$VERSION" -o jive-encoder ./cmd/jive-encoder
 
 # Clean build artifacts
 clean:
-    rm -fv jivedrop 2>/dev/null || true
+    rm -fv jive-encoder 2>/dev/null || true
     @rm testdata/*.mp3 2>/dev/null || true
     @rm testdata/*.m4a 2>/dev/null || true
     @rm testdata/*.opus 2>/dev/null || true
 
-# Install jivedrop to ~/.local/bin
+# Install jive-encoder to ~/.local/bin
 install: build
     @mkdir -p ~/.local/bin 2>/dev/null || true
-    @mv ./jivedrop ~/.local/bin/jivedrop
-    @echo "Installed jivedrop to ~/.local/bin/jivedrop"
+    @mv ./jive-encoder ~/.local/bin/jive-encoder
+    @echo "Installed jive-encoder to ~/.local/bin/jive-encoder"
     @echo "Make sure ~/.local/bin is in your PATH"
 
 # Record gif
 vhs: build
-    @vhs ./jivedrop.tape
+    @vhs ./jive-encoder.tape
     rm LMP67.mp3 2>/dev/null || true
 
 # Show current version (from git tags or "dev" if no tags)
@@ -200,12 +200,12 @@ test-encoder: build
         rm -f "$file"
 
         # Decline the frontmatter-update prompt. Gate on the encode exit status,
-        # not the SIGPIPE that "echo n" may receive once jivedrop stops reading.
+        # not the SIGPIPE that "echo n" may receive once jive-encoder stops reading.
         set +o pipefail
-        echo n | ./jivedrop "$flac" "$meta" --format "$fmt" --output-path "$out/" >/dev/null
+        echo n | ./jive-encoder "$flac" "$meta" --format "$fmt" --output-path "$out/" >/dev/null
         rc=${PIPESTATUS[1]}
         set -o pipefail
-        [ "$rc" -eq 0 ] || fail "$fmt: jivedrop exited $rc"
+        [ "$rc" -eq 0 ] || fail "$fmt: jive-encoder exited $rc"
         [ -f "$file" ] || fail "$fmt: expected output $file not created"
 
         got_codec=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of "default=noprint_wrappers=1:nokey=1" "$file")

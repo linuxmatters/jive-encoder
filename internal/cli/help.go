@@ -43,7 +43,7 @@ func StyledHelpPrinter(options kong.HelpOptions) kong.HelpPrinter {
 		var sb strings.Builder
 
 		// Title and description
-		sb.WriteString(TitleStyle.Render("Jivedrop 🪩"))
+		sb.WriteString(TitleStyle.Render("Jive Encoder 🪩"))
 		sb.WriteString("\n")
 		sb.WriteString(helpDescStyle.Render("Drop your podcast .wav into a shiny MP3, AAC, or Opus with metadata, cover art, and all."))
 		sb.WriteString("\n")

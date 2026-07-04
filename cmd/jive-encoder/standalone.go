@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/linuxmatters/jivedrop/internal/encoder"
-	"github.com/linuxmatters/jivedrop/internal/id3"
+	"github.com/linuxmatters/jive-encoder/internal/encoder"
+	"github.com/linuxmatters/jive-encoder/internal/id3"
 )
 
 // StandaloneWorkflow implements the Workflow interface for standalone mode.
