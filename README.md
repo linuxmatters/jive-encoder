@@ -35,7 +35,7 @@ Jive Encoder takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready pod
 
 ### Hugo Mode (Integrated Workflow)
 
-For podcasts using Hugo static site generator and the something like [Castanet](https://github.com/mattstratton/castanet), Jive Encoder reads metadata from episode markdown:
+For podcasts using the Hugo static site generator and a theme like [Castanet](https://github.com/mattstratton/castanet), Jive Encoder reads metadata from episode markdown:
 
 **Hugo mode automatically:**
 - Reads episode title and number from frontmatter
@@ -115,7 +115,7 @@ Flags:
   --comment      Comment URL (defaults to 'https://linuxmatters.sh' in Hugo mode)
   --cover        Cover art path (required in standalone mode)
   --output-path  Output file or directory path
-  --format       Output format: mp3, aac, or opus (default: "mp3")
+  --format       Output format: mp3, aac, or opus (default: mp3)
   --stereo       Encode as stereo at 192kbps (default: mono at 112kbps)
   --version      Show version information
 ```

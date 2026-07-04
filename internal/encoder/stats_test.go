@@ -2,6 +2,7 @@ package encoder
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -28,31 +29,46 @@ func TestFormatDurationHMS(t *testing.T) {
 	}
 }
 
-// TestGetFileStats is an integration test that requires an actual MP3 file
-// The MP3 is created by TestEncodeToMP3_Integration if it doesn't exist
+// TestGetFileStats verifies size and duration reporting against temp files
+// of known content, so it needs no encoded audio artefacts.
 func TestGetFileStats(t *testing.T) {
-	testFile := "../../testdata/LMP0.mp3"
-
-	if _, err := os.Stat(testFile); os.IsNotExist(err) {
-		t.Skip("Test MP3 file not found - run tests to generate it via TestEncodeToMP3_Integration")
+	tests := []struct {
+		name         string
+		sizeBytes    int
+		durationSecs int64
+		expected     string
+	}{
+		{"empty file, zero duration", 0, 0, "00:00:00"},
+		{"small file, under a minute", 27, 27, "00:00:27"},
+		{"typical episode length", 4096, 1695, "00:28:15"},
+		{"over an hour", 1024, 3661, "01:01:01"},
 	}
 
-	// Use a known duration for testing (the test file is ~27 seconds)
-	testDurationSecs := int64(27)
-	stats, err := GetFileStats(testFile, testDurationSecs)
-	if err != nil {
-		t.Fatalf("GetFileStats() error = %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "episode.mp3")
+			if err := os.WriteFile(path, make([]byte, tt.sizeBytes), 0o644); err != nil {
+				t.Fatalf("failed to write temp file: %v", err)
+			}
+
+			stats, err := GetFileStats(path, tt.durationSecs)
+			if err != nil {
+				t.Fatalf("GetFileStats() error = %v", err)
+			}
+
+			if stats.FileSizeBytes != int64(tt.sizeBytes) {
+				t.Errorf("FileSizeBytes = %d; want %d", stats.FileSizeBytes, tt.sizeBytes)
+			}
+			if stats.DurationString != tt.expected {
+				t.Errorf("DurationString = %s; want %s", stats.DurationString, tt.expected)
+			}
+		})
 	}
 
-	// Verify duration format (should be HH:MM:SS)
-	if len(stats.DurationString) != 8 {
-		t.Errorf("Duration format incorrect: got %s, want HH:MM:SS format", stats.DurationString)
-	}
-
-	if stats.FileSizeBytes <= 0 {
-		t.Errorf("FileSizeBytes = %d; want > 0", stats.FileSizeBytes)
-	}
-
-	t.Logf("Stats for %s: duration=%s, size=%d bytes",
-		testFile, stats.DurationString, stats.FileSizeBytes)
+	t.Run("missing file returns error", func(t *testing.T) {
+		missing := filepath.Join(t.TempDir(), "missing.mp3")
+		if _, err := GetFileStats(missing, 27); err == nil {
+			t.Error("GetFileStats() on missing file: expected error, got nil")
+		}
+	})
 }

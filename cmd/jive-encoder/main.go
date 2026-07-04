@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,22 +10,15 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/kong"
 	"github.com/charmbracelet/x/term"
+	"github.com/linuxmatters/jive-encoder/internal/artwork"
 	"github.com/linuxmatters/jive-encoder/internal/cli"
 	"github.com/linuxmatters/jive-encoder/internal/encoder"
-	"github.com/linuxmatters/jive-encoder/internal/id3"
 	"github.com/linuxmatters/jive-encoder/internal/ui"
 )
 
 // version is set via ldflags at build time: "dev" for local builds, the git
 // tag (e.g. "v0.1.0") for releases.
 var version = "dev"
-
-// coverArtResult carries the outcome of concurrent cover art processing back
-// to the encode pipeline.
-type coverArtResult struct {
-	data []byte
-	err  error
-}
 
 // WorkflowMode selects how metadata is sourced: from Hugo frontmatter or from
 // CLI flags alone.
@@ -150,7 +144,7 @@ func resolveOutputPath(mode WorkflowMode, num, artist, cliArtist, ext, outputPat
 // CLI flags by the caller so encode itself reads no package-level state.
 type EncodeRequest struct {
 	Mode         WorkflowMode
-	TagInfo      id3.TagInfo
+	Metadata     encoder.Metadata
 	CoverArtPath string
 	OutputPath   string
 	AudioFile    string
@@ -164,7 +158,7 @@ type EncodeRequest struct {
 // the input line reads enc.GetInputInfo().
 func printEncodePlan(req EncodeRequest, enc *encoder.Encoder) {
 	cli.PrintSuccessLabel("Ready to encode:", fmt.Sprintf("%s -> %s", req.AudioFile, strings.ToUpper(req.Format)))
-	cli.PrintLabelValue("• Episode:", fmt.Sprintf("%s - %s", req.TagInfo.EpisodeNumber, req.TagInfo.Title))
+	cli.PrintLabelValue("• Episode:", fmt.Sprintf("%s - %s", req.Metadata.EpisodeNumber, req.Metadata.Title))
 	if req.Mode == HugoMode {
 		cli.PrintLabelValue("• Episode markdown:", req.EpisodeMD)
 	}
@@ -216,7 +210,7 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 			// User interrupted with Ctrl+C. Encode has already returned (the model
 			// quits only after EncodingCompleteMsg), so the caller's deferred Close
 			// is safe. Report the interrupt; the caller discards the truncated file.
-			return encodeOutcome{err: fmt.Errorf("encoding cancelled"), partialFile: true}
+			return encodeOutcome{err: errors.New("encoding cancelled"), partialFile: true}
 		}
 		if encModel.Error() != nil {
 			return encodeOutcome{err: fmt.Errorf("encoding failed: %w", encModel.Error()), partialFile: true}
@@ -226,20 +220,19 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 	// tea.Printf/Println no-op under WithoutRenderer, so emit the encode-stage
 	// line directly from here when running without a TTY. This mirrors the TTY
 	// completeView (which reports the encode finishing, not the whole job);
-	// cover-art and ID3 work still follow, and the final-artefact line marks
-	// success.
+	// stats extraction still follows, and the final-artefact line marks success.
 	if !isTTY {
-		fmt.Println("Audio encoded, embedding metadata...")
+		fmt.Println("Audio encoded, extracting statistics...")
 	}
 
 	return encodeOutcome{}
 }
 
-// embedMetadata finishes the job after a successful encode: tags and cover art
+// extractStats finishes the job after a successful encode: tags and cover art
 // are written by the encoder during Initialize/Encode, so this only extracts
 // file statistics. The returned partial flag is true when the output file was written
 // successfully but stats extraction failed; in that case stats is nil.
-func embedMetadata(req EncodeRequest, enc *encoder.Encoder) (stats *encoder.FileStats, partial bool) {
+func extractStats(req EncodeRequest, enc *encoder.Encoder) (stats *encoder.FileStats, partial bool) {
 	cli.PrintSuccessLabel("Complete:", req.OutputPath)
 
 	// Extract file statistics using duration from encoder (avoids re-opening file)
@@ -253,30 +246,20 @@ func embedMetadata(req EncodeRequest, enc *encoder.Encoder) (stats *encoder.File
 	return stats, false
 }
 
-// encode orchestrates the full encoding pipeline: print the plan, create and
-// initialise the encoder, scale cover art concurrently, run the Bubbletea UI,
-// handle the outcome, then embed metadata and extract statistics. The returned
-// partial flag is true when the output file was written successfully but stats
-// extraction failed; in that case stats is nil and error is nil.
+// encode orchestrates the full encoding pipeline: scale cover art, create and
+// initialise the encoder, print the plan, run the Bubbletea UI, handle the
+// outcome, then extract file statistics. The returned partial flag is true
+// when the output file was written successfully but stats extraction failed;
+// in that case stats is nil and error is nil.
 func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err error) {
-	// The encoder now embeds the cover as an attached-picture stream during
-	// Initialize/Encode, so the scaled bytes must exist before Initialize. Scale
-	// up front rather than overlapping the encode; this drops the old
-	// scale/encode concurrency, but scaling is fast so the cost is negligible.
-	coverArtChan := make(chan coverArtResult, 1)
-	go func() {
-		if req.CoverArtPath == "" {
-			coverArtChan <- coverArtResult{data: nil, err: nil}
-			return
+	// The encoder embeds the cover as an attached-picture stream during
+	// Initialize/Encode, so the scaled bytes must exist before Initialize.
+	var coverArt []byte
+	if req.CoverArtPath != "" {
+		coverArt, err = artwork.ScaleCoverArt(req.CoverArtPath)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to process cover art: %w", err)
 		}
-
-		artwork, artErr := id3.ScaleCoverArt(req.CoverArtPath)
-		coverArtChan <- coverArtResult{data: artwork, err: artErr}
-	}()
-
-	coverResult := <-coverArtChan
-	if coverResult.err != nil {
-		return nil, false, fmt.Errorf("failed to process cover art: %w", coverResult.err)
 	}
 
 	enc, err := encoder.New(encoder.Config{
@@ -284,15 +267,8 @@ func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err erro
 		OutputPath: req.OutputPath,
 		Format:     req.Format,
 		Stereo:     req.Stereo,
-		CoverArt:   coverResult.data,
-		Metadata: encoder.Metadata{
-			EpisodeNumber: req.TagInfo.EpisodeNumber,
-			Title:         req.TagInfo.Title,
-			Artist:        req.TagInfo.Artist,
-			Album:         req.TagInfo.Album,
-			Date:          req.TagInfo.Date,
-			Comment:       req.TagInfo.Comment,
-		},
+		CoverArt:   coverArt,
+		Metadata:   req.Metadata,
 	})
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to create encoder: %w", err)
@@ -315,7 +291,7 @@ func encode(req EncodeRequest) (stats *encoder.FileStats, partial bool, err erro
 		return nil, false, outcome.err
 	}
 
-	stats, partial = embedMetadata(req, enc)
+	stats, partial = extractStats(req, enc)
 	return stats, partial, nil
 }
 
@@ -329,7 +305,7 @@ func run() int {
 		kong.Description("Drop the mix, ship the show—metadata, cover art, and all."),
 		kong.Vars{"version": version},
 		kong.UsageOnError(),
-		kong.Help(cli.StyledHelpPrinter(kong.HelpOptions{Compact: true})),
+		kong.Help(cli.StyledHelpPrinter),
 	)
 
 	if CLI.Version {
@@ -367,13 +343,13 @@ func run() int {
 		return 1
 	}
 
-	tagInfo, coverArtPath, err := wf.CollectMetadata()
+	metadata, coverArtPath, err := wf.CollectMetadata()
 	if err != nil {
 		cli.PrintError(err.Error())
 		return 1
 	}
 
-	outputPath, err := resolveOutputPath(mode, tagInfo.EpisodeNumber, tagInfo.Artist, CLI.Artist, encoder.ExtensionFor(CLI.Format), CLI.OutputPath)
+	outputPath, err := resolveOutputPath(mode, metadata.EpisodeNumber, metadata.Artist, CLI.Artist, encoder.ExtensionFor(CLI.Format), CLI.OutputPath)
 	if err != nil {
 		cli.PrintError(fmt.Sprintf("Failed to resolve output path: %v", err))
 		return 1
@@ -381,7 +357,7 @@ func run() int {
 
 	stats, partial, err := encode(EncodeRequest{
 		Mode:         mode,
-		TagInfo:      tagInfo,
+		Metadata:     metadata,
 		CoverArtPath: coverArtPath,
 		OutputPath:   outputPath,
 		AudioFile:    CLI.AudioFile,

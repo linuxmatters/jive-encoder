@@ -199,10 +199,13 @@ test-encoder: build
         file="$out/LMP67.${ext[$fmt]}"
         rm -f "$file"
 
-        # Decline the frontmatter-update prompt. Gate on the encode exit status,
-        # not the SIGPIPE that "echo n" may receive once jive-encoder stops reading.
+        # Keep the encoder's output visible (the TUI renders when stdout is a
+        # terminal). "yes n" declines the frontmatter-update prompt: the TUI
+        # consumes stdin while it runs, so a single "echo n" would be eaten
+        # before the prompt reads it. Gate on the encode exit status, not the
+        # SIGPIPE that "yes" receives once jive-encoder exits.
         set +o pipefail
-        echo n | ./jive-encoder "$flac" "$meta" --format "$fmt" --output-path "$out/" >/dev/null
+        yes n | ./jive-encoder "$flac" "$meta" --format "$fmt" --output-path "$out/"
         rc=${PIPESTATUS[1]}
         set -o pipefail
         [ "$rc" -eq 0 ] || fail "$fmt: jive-encoder exited $rc"

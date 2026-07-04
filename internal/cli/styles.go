@@ -5,6 +5,17 @@ import (
 	"os"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
+)
+
+// AppTitle is the styled application title shown in version and help output
+const AppTitle = "Jive Encoder 🪩"
+
+var (
+	// Colour-profile-aware writers: degrade colour for non-TTY output,
+	// honouring NO_COLOR and TERM
+	stdout = colorprofile.NewWriter(os.Stdout, os.Environ())
+	stderr = colorprofile.NewWriter(os.Stderr, os.Environ())
 )
 
 var (
@@ -53,38 +64,38 @@ var (
 
 // PrintVersion prints version information
 func PrintVersion(version string) {
-	fmt.Println(TitleStyle.Render("Jive Encoder 🪩"))
-	fmt.Printf("%s %s\n", KeyStyle.Render("Version:"), ValueStyle.Render(version))
-	fmt.Println()
+	fmt.Fprintln(stdout, TitleStyle.Render(AppTitle))
+	fmt.Fprintf(stdout, "%s %s\n", KeyStyle.Render("Version:"), ValueStyle.Render(version))
+	fmt.Fprintln(stdout)
 }
 
 // PrintError prints an error message
 func PrintError(message string) {
-	fmt.Fprintf(os.Stderr, "%s %s\n", ErrorStyle.Render("Error:"), message)
+	fmt.Fprintf(stderr, "%s %s\n", ErrorStyle.Render("Error:"), message)
 }
 
 // PrintWarning prints a warning message
 func PrintWarning(message string) {
-	fmt.Printf("%s %s\n", WarningStyle.Render("Warning:"), message)
+	fmt.Fprintf(stderr, "%s %s\n", WarningStyle.Render("Warning:"), message)
 }
 
 // PrintSuccess prints a success message
 func PrintSuccess(message string) {
-	fmt.Printf("%s %s\n", SuccessStyle.Render("✓"), message)
+	fmt.Fprintf(stdout, "%s %s\n", SuccessStyle.Render("✓"), message)
 }
 
 // PrintInfo prints an informational message
 func PrintInfo(message string) {
-	fmt.Printf("%s %s\n", KeyStyle.Render("•"), message)
+	fmt.Fprintf(stdout, "%s %s\n", KeyStyle.Render("•"), message)
 }
 
 // PrintLabelValue prints a label with muted style and a value
 // Used for summary output like "Episode: 67 - Title"
 func PrintLabelValue(label, value string) {
-	fmt.Printf("%s %s\n", KeyStyle.Render(label), value)
+	fmt.Fprintf(stdout, "%s %s\n", KeyStyle.Render(label), value)
 }
 
 // PrintSuccessLabel prints a success checkmark with a muted label and value
 func PrintSuccessLabel(label, value string) {
-	fmt.Printf("%s %s %s\n", SuccessStyle.Render("\u2713"), KeyStyle.Render(label), value)
+	fmt.Fprintf(stdout, "%s %s %s\n", SuccessStyle.Render("✓"), KeyStyle.Render(label), value)
 }

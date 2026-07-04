@@ -1,9 +1,14 @@
-package id3
+// Package artwork scales podcast cover art to Apple Podcasts specifications.
+// The encoder embeds the scaled bytes as an attached-picture stream for
+// cover-capable formats.
+package artwork
 
 import (
 	"bytes"
 	"fmt"
 	"image"
+	_ "image/gif"  // register GIF decoder for image.Decode
+	_ "image/jpeg" // register JPEG decoder for image.Decode
 	"image/png"
 	"os"
 
@@ -12,12 +17,12 @@ import (
 
 // ScaleCoverArt scales cover art according to Apple Podcasts specifications:
 //   - Images < 1400x1400: upscale to 1400x1400
-//   - Images 1400x1400 to 3000x3000: use as-is (no scaling artifacts)
+//   - Images 1400x1400 to 3000x3000: use as-is (no scaling artefacts)
 //   - Images > 3000x3000: downscale to 3000x3000
 //
-// To avoid needless recompression it returns the original PNG bytes untouched
-// when no scaling is required, and only re-encodes scaled images or non-PNG
-// inputs.
+// It accepts PNG, JPEG, and GIF input. To avoid needless recompression an
+// in-spec PNG returns its original bytes untouched; scaled images and non-PNG
+// inputs re-encode to PNG.
 func ScaleCoverArt(inputPath string) ([]byte, error) {
 	data, err := os.ReadFile(inputPath)
 	if err != nil {
@@ -68,7 +73,7 @@ func ScaleCoverArt(inputPath string) ([]byte, error) {
 		finalImg = img
 	}
 
-	// Normalise every re-encoded path to PNG for a consistent APIC payload.
+	// Normalise every re-encoded path to PNG for a consistent attached-picture payload.
 	var buf bytes.Buffer
 
 	err = png.Encode(&buf, finalImg)
