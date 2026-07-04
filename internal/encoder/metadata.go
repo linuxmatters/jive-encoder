@@ -14,7 +14,7 @@ import (
 
 // ParseEpisodeNumber validates a raw episode number and returns it unchanged
 // when valid. An episode number must be non-empty and a non-negative integer,
-// so it produces a well-formed ID3 TRCK frame and filename. Non-numeric input
+// so it produces a well-formed muxer track tag and filename. Non-numeric input
 // such as "foo" or "67a" is rejected at the boundary.
 func ParseEpisodeNumber(s string) (string, error) {
 	if s == "" {
@@ -37,8 +37,8 @@ type muxerTag struct {
 }
 
 // buildMuxerTags renders the muxer metadata key/value set from the episode
-// fields, skipping empty values. The title preserves the "{EpisodeNumber}: {Title}"
-// format. The track key carries the episode number, matching the previous TRCK frame.
+// fields, skipping empty values. The title uses the "{EpisodeNumber}: {Title}"
+// format. The track key carries the episode number.
 func buildMuxerTags(m Metadata) []muxerTag {
 	var tags []muxerTag
 
@@ -73,8 +73,8 @@ type EpisodeMetadata struct {
 // UnmarshalYAML decodes EpisodeMetadata while accepting either the capitalised
 // "Date" key (used by all existing frontmatter) or a lowercase "date" key.
 // yaml.v3 matches struct tags case-sensitively, so without this a lowercase
-// "date:" would silently parse to the zero time.Time and produce a wrong ID3
-// TDRC tag with no error surfaced. "Date" takes precedence when both appear.
+// "date:" would silently parse to the zero time.Time and produce a wrong date
+// tag with no error surfaced. "Date" takes precedence when both appear.
 func (m *EpisodeMetadata) UnmarshalYAML(value *yaml.Node) error {
 	// Alias avoids infinite recursion into this method while reusing the tags.
 	type rawMetadata EpisodeMetadata
@@ -226,7 +226,8 @@ func findProjectRoot(startPath string) (string, error) {
 	}
 }
 
-// FormatDateForID3 formats a time.Time to "YYYY-MM" format for ID3 TDRC tag
+// FormatDateForID3 formats a time.Time to "YYYY-MM" for the muxer date tag
+// (ID3 TDRC for MP3, and the equivalent date field in other muxers).
 func FormatDateForID3(t time.Time) string {
 	return t.Format("2006-01")
 }

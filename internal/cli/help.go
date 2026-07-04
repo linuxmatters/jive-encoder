@@ -39,7 +39,9 @@ var (
 				Italic(true)
 )
 
-// StyledHelpPrinter is a kong.HelpPrinter that renders help with Lipgloss styling
+// StyledHelpPrinter is a kong.HelpPrinter that builds the help text with
+// Lipgloss styling, then writes it through a colour-profile writer so colour
+// degrades for non-TTY output.
 func StyledHelpPrinter(options kong.HelpOptions, ctx *kong.Context) error {
 	var sb strings.Builder
 

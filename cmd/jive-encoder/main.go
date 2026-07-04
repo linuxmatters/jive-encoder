@@ -51,7 +51,7 @@ var CLI struct {
 	Version bool   `help:"Show version information"`
 }
 
-// detectMode determines if this is Hugo or Standalone workflow
+// detectMode reports whether the invocation is a Hugo or Standalone workflow.
 func detectMode(audioFile, episodeMD string) WorkflowMode {
 	// With no audio file the mode is irrelevant; run() shows help and exits.
 	if audioFile == "" {
@@ -235,7 +235,7 @@ func runEncodeUI(enc *encoder.Encoder, outputMode string, outputBitrate int) enc
 func extractStats(req EncodeRequest, enc *encoder.Encoder) (stats *encoder.FileStats, partial bool) {
 	cli.PrintSuccessLabel("Complete:", req.OutputPath)
 
-	// Extract file statistics using duration from encoder (avoids re-opening file)
+	// Reuse the encoder's duration so stats do not re-open the output file.
 	durationSecs := enc.GetDurationSecs()
 	stats, err := encoder.GetFileStats(req.OutputPath, durationSecs)
 	if err != nil {

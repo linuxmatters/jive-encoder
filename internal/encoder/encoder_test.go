@@ -625,7 +625,7 @@ func TestEncoder_CloseSafety(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to create encoder: %v", err)
 				}
-				// Don't call Initialize - Close should handle nil pointers gracefully
+				// Skip Initialize so Close must handle nil pointers gracefully.
 				return enc
 			},
 		},

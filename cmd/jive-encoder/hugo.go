@@ -21,7 +21,7 @@ const (
 type HugoWorkflow struct {
 	// opts carries the parsed CLI fields, populated at construction.
 	opts CLIOptions
-	// hugoMetadata is set during CollectMetadata and read during PostEncode
+	// hugoMetadata is set during CollectMetadata and read during PostEncode.
 	hugoMetadata *encoder.EpisodeMetadata
 }
 
@@ -126,7 +126,8 @@ func (h *HugoWorkflow) PostEncode(stats *encoder.FileStats) error {
 		needsUpdate = true
 	}
 
-	// Prompt user to update frontmatter if values differ or are missing
+	// A mismatch and a missing value both need confirmation, but each gets its
+	// own prompt wording so the user knows which case they are approving.
 	if needsUpdate {
 		promptAndUpdateFrontmatter(h.opts.EpisodeMD, "\nUpdate frontmatter with new values? [y/N]: ", stats.DurationString, stats.FileSizeBytes)
 	} else if h.hugoMetadata.PodcastDuration == "" || h.hugoMetadata.PodcastBytes == 0 {
