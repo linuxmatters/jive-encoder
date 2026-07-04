@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -508,29 +509,17 @@ func TestScaleCoverArt_MultipleScalings(t *testing.T) {
 
 // Helper function to create test PNG images
 func createTestPNG(path string, width, height int) error {
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	// Fill with a gradient pattern for visual distinctiveness
-	for y := range height {
-		for x := range width {
-			r := uint8((x * 255) / width)                  //nolint:gosec // test code, values bounded by image dimensions
-			g := uint8((y * 255) / height)                 //nolint:gosec // test code, values bounded by image dimensions
-			b := uint8(((x + y) * 255) / (width + height)) //nolint:gosec // test code, values bounded by image dimensions
-			img.SetRGBA(x, y, color.RGBA{R: r, G: g, B: b, A: 255})
-		}
-	}
-
-	file, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	return png.Encode(file, img)
+	return createTestImage(path, width, height, png.Encode)
 }
 
 // Helper function to create test JPEG images
 func createTestJPEG(path string, width, height int) error {
+	return createTestImage(path, width, height, func(w io.Writer, img image.Image) error {
+		return jpeg.Encode(w, img, &jpeg.Options{Quality: 90})
+	})
+}
+
+func createTestImage(path string, width, height int, encode func(io.Writer, image.Image) error) error {
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	// Fill with a gradient pattern for visual distinctiveness
@@ -549,5 +538,5 @@ func createTestJPEG(path string, width, height int) error {
 	}
 	defer file.Close()
 
-	return jpeg.Encode(file, img, &jpeg.Options{Quality: 90})
+	return encode(file, img)
 }

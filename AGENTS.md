@@ -33,7 +33,7 @@ cmd/jive-encoder/
 internal/
   encoder/               # FFmpeg-based MP3/AAC/Opus encoding via ffmpeg-statigo
     encoder.go           # Core encode pipeline: decode → filter → encode → muxer-native tag
-    preset.go            # Per-format preset table (codec, bitrate, sample fmt/rate, muxer, extension, lowpass, cover)
+    preset.go            # Per-format preset table (codec, bitrate, sample fmt/rate, extension, lowpass, cover)
     metadata.go          # Hugo frontmatter parsing (YAML between --- delimiters) + muxer tag assembly
     stats.go             # Duration/filesize extraction from the encoded file
   artwork/               # Cover-art scaling (no tag writer; FFmpeg muxers write tags)
@@ -66,11 +66,11 @@ third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.1 static bindings
 
 ### Encoding Settings
 
-`internal/encoder/preset.go` holds the per-format preset table (the single source of truth for codec, bitrate, sample format, sample rate, muxer, extension, lowpass, cover capability). Mono is the default; `--stereo` selects the stereo bitrate.
+`internal/encoder/preset.go` holds the per-format preset table (the single source of truth for codec, bitrate, sample format, sample rate, extension, lowpass, cover capability). Mono is the default; `--stereo` selects the stereo bitrate.
 
-- **MP3 (default)**: CBR 112/192kbps, 44.1kHz, sample fmt `s16p`, LAME quality 3, 20.5kHz lowpass; `mp3` muxer → `.mp3`
-- **AAC-LC (`--format aac`)**: CBR 64/128kbps, 44.1kHz, sample fmt `fltp`, no lowpass; `ipod` muxer → `.m4a`
-- **Opus (`--format opus`)**: VBR ~32/~48kbps, 48kHz (libopus rejects 44.1kHz), sample fmt `flt` (libopus rejects `fltp`), `vbr=on`, compression_level 10, no lowpass; `opus` muxer → `.opus`
+- **MP3 (default)**: CBR 112/192kbps, 44.1kHz, sample fmt `s16p`, LAME quality 3, 20.5kHz lowpass; emits `.mp3`
+- **AAC-LC (`--format aac`)**: CBR 64/128kbps, 44.1kHz, sample fmt `fltp`, no lowpass; emits `.m4a`
+- **Opus (`--format opus`)**: VBR ~32/~48kbps, 48kHz (libopus rejects 44.1kHz), sample fmt `flt` (libopus rejects `fltp`), `vbr=on`, compression_level 10, no lowpass; emits `.opus`
 
 ### FFmpeg Integration
 

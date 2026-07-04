@@ -4,10 +4,10 @@ import (
 	"github.com/linuxmatters/ffmpeg-statigo"
 )
 
-// formatPreset describes how a single output format is encoded and muxed. The
+// formatPreset describes how a single output format is encoded. The
 // table below is the single source of truth for codec, bitrate, sample format,
-// muxer, extension, lowpass policy, and cover capability, so the encoder reads
-// the preset rather than branching on the format name.
+// extension, lowpass policy, and cover capability, so the encoder reads the
+// preset rather than branching on the format name.
 type formatPreset struct {
 	// name is the lowercase format identifier (mp3, aac, opus).
 	name string
@@ -28,8 +28,6 @@ type formatPreset struct {
 	// sampleRate is the output sample rate in Hz. MP3 and AAC use 44.1 kHz;
 	// libopus rejects 44.1 kHz at open, so Opus uses 48 kHz.
 	sampleRate int
-	// muxer is the output format name for AVFormatAllocOutputContext2.
-	muxer string
 	// extension is the output file extension including the leading dot.
 	extension string
 	// lowpassHz is the lowpass cutoff in Hz, or 0 for no lowpass.
@@ -53,7 +51,6 @@ var formatPresets = map[string]formatPreset{
 		vbr:           false,
 		sampleFmt:     ffmpeg.AVSampleFmtS16P,
 		sampleRate:    44100,
-		muxer:         "mp3",
 		extension:     ".mp3",
 		lowpassHz:     20500,
 		coverCapable:  true,
@@ -69,7 +66,6 @@ var formatPresets = map[string]formatPreset{
 		vbr:           false,
 		sampleFmt:     ffmpeg.AVSampleFmtFltp,
 		sampleRate:    44100,
-		muxer:         "ipod",
 		extension:     ".m4a",
 		lowpassHz:     0,
 		coverCapable:  true,
@@ -84,7 +80,6 @@ var formatPresets = map[string]formatPreset{
 		vbr:           true,
 		sampleFmt:     ffmpeg.AVSampleFmtFlt,
 		sampleRate:    48000,
-		muxer:         "opus",
 		extension:     ".opus",
 		lowpassHz:     0,
 		coverCapable:  false,

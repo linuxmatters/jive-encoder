@@ -56,7 +56,7 @@ func progressView(m *EncodeModel) string {
 		"   ",
 		boltStyle.Render("⚡"),
 		" ",
-		highlightStyle.Render(fmt.Sprintf("%.1f×", speed)),
+		speedLabel(speed),
 	)
 
 	b.WriteString(stats)
@@ -123,7 +123,7 @@ func completeView(m *EncodeModel) string {
 		successStyle.Render("✓"),
 		valueStyle.Render(elapsed),
 		boltStyle.Render("⚡"),
-		highlightStyle.Render(fmt.Sprintf("%.1f×", speed)),
+		speedLabel(speed),
 	)
 
 	return frameStyle.Render(lipgloss.JoinVertical(lipgloss.Left, msg))
@@ -137,4 +137,8 @@ func errorView(err error) string {
 	)
 
 	return frameStyle.Render(lipgloss.JoinVertical(lipgloss.Left, msg))
+}
+
+func speedLabel(speed float64) string {
+	return highlightStyle.Render(fmt.Sprintf("%.1f×", speed))
 }

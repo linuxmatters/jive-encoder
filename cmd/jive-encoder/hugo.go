@@ -31,7 +31,7 @@ func (h *HugoWorkflow) Validate() error {
 		return fmt.Errorf("hugo mode requires episode markdown file as second argument")
 	}
 
-	if !strings.HasSuffix(strings.ToLower(h.opts.EpisodeMD), ".md") {
+	if !isMarkdownPath(h.opts.EpisodeMD) {
 		return fmt.Errorf("episode markdown file must have .md extension: %s", h.opts.EpisodeMD)
 	}
 

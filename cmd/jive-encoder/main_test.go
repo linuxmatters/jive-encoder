@@ -563,52 +563,37 @@ func isPathMatch(fullPath, expected string) bool {
 func TestDetectMode(t *testing.T) {
 	tests := []struct {
 		name      string
-		audioFile string
 		episodeMD string
 		expected  WorkflowMode
 	}{
-		// Empty audio file - no arguments provided
-		{
-			name:      "empty audio file",
-			audioFile: "",
-			episodeMD: "",
-			expected:  HugoMode, // Return value doesn't matter, exit will handle it
-		},
-
 		// Hugo mode: second argument is .md file
 		{
 			name:      "hugo mode with lowercase .md",
-			audioFile: "podcast.flac",
 			episodeMD: "episode.md",
 			expected:  HugoMode,
 		},
 		{
 			name:      "hugo mode with uppercase .MD",
-			audioFile: "podcast.flac",
 			episodeMD: "episode.MD",
 			expected:  HugoMode,
 		},
 		{
 			name:      "hugo mode with mixed case .Md",
-			audioFile: "podcast.flac",
 			episodeMD: "episode.Md",
 			expected:  HugoMode,
 		},
 		{
 			name:      "hugo mode with path containing .md",
-			audioFile: "podcast.flac",
 			episodeMD: "content/episodes/67.md",
 			expected:  HugoMode,
 		},
 		{
 			name:      "hugo mode with nested path and uppercase .MD",
-			audioFile: "audio.wav",
 			episodeMD: "posts/episode/post.MD",
 			expected:  HugoMode,
 		},
 		{
 			name:      "hugo mode with only filename .md",
-			audioFile: "LMP67.flac",
 			episodeMD: "67.md",
 			expected:  HugoMode,
 		},
@@ -616,37 +601,26 @@ func TestDetectMode(t *testing.T) {
 		// Standalone mode: second argument is NOT a .md file
 		{
 			name:      "standalone mode with .txt file",
-			audioFile: "podcast.flac",
 			episodeMD: "readme.txt",
 			expected:  StandaloneMode,
 		},
 		{
 			name:      "standalone mode with .md in middle of filename",
-			audioFile: "podcast.flac",
 			episodeMD: "markdown_file.mp3",
 			expected:  StandaloneMode,
 		},
 		{
 			name:      "standalone mode with .md not at end",
-			audioFile: "podcast.flac",
 			episodeMD: "file.md.txt",
 			expected:  StandaloneMode,
 		},
 		{
 			name:      "standalone mode with empty episodeMD string",
-			audioFile: "podcast.flac",
-			episodeMD: "",
-			expected:  StandaloneMode,
-		},
-		{
-			name:      "standalone mode with audio file only",
-			audioFile: "LMP67.flac",
 			episodeMD: "",
 			expected:  StandaloneMode,
 		},
 		{
 			name:      "standalone mode with non-md extension",
-			audioFile: "audio.wav",
 			episodeMD: "episode.yaml",
 			expected:  StandaloneMode,
 		},
@@ -654,31 +628,26 @@ func TestDetectMode(t *testing.T) {
 		// Edge cases
 		{
 			name:      "just .md (no filename before extension)",
-			audioFile: "podcast.flac",
 			episodeMD: ".md",
 			expected:  HugoMode,
 		},
 		{
 			name:      "filename with multiple dots ending in .md",
-			audioFile: "podcast.flac",
 			episodeMD: "my.episode.v2.md",
 			expected:  HugoMode,
 		},
 		{
 			name:      "filename with multiple dots not ending in .md",
-			audioFile: "podcast.flac",
 			episodeMD: "my.episode.v2.md.backup",
 			expected:  StandaloneMode,
 		},
 		{
 			name:      "markdown file with spaces",
-			audioFile: "podcast.flac",
 			episodeMD: "my episode file.md",
 			expected:  HugoMode,
 		},
 		{
 			name:      "episode md with special characters",
-			audioFile: "podcast.flac",
 			episodeMD: "episode-67_final.md",
 			expected:  HugoMode,
 		},
@@ -686,25 +655,21 @@ func TestDetectMode(t *testing.T) {
 		// Realistic CLI invocations
 		{
 			name:      "real hugo workflow: LMP67.flac content/episodes/67.md",
-			audioFile: "LMP67.flac",
 			episodeMD: "content/episodes/67.md",
 			expected:  HugoMode,
 		},
 		{
 			name:      "real standalone workflow: podcast.wav with flags only",
-			audioFile: "podcast.wav",
 			episodeMD: "",
 			expected:  StandaloneMode,
 		},
 		{
 			name:      "common mistake: non-md episode file falls back to standalone",
-			audioFile: "episode.flac",
 			episodeMD: "episode.txt",
 			expected:  StandaloneMode,
 		},
 		{
 			name:      "uppercase .MD extension for cross-platform",
-			audioFile: "LMP99.flac",
 			episodeMD: "99.MD",
 			expected:  HugoMode,
 		},
@@ -712,11 +677,11 @@ func TestDetectMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := detectMode(tt.audioFile, tt.episodeMD)
+			result := detectMode(tt.episodeMD)
 
 			if result != tt.expected {
-				t.Errorf("detectMode() = %v; want %v (AudioFile=%q, EpisodeMD=%q)",
-					result, tt.expected, tt.audioFile, tt.episodeMD)
+				t.Errorf("detectMode() = %v; want %v (EpisodeMD=%q)",
+					result, tt.expected, tt.episodeMD)
 			}
 		})
 	}

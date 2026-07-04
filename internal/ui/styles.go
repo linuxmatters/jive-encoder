@@ -5,13 +5,8 @@ import (
 	"github.com/linuxmatters/jive-encoder/internal/cli"
 )
 
-// Import shared colour palette from cli package
+// Import shared gradient colours from cli package.
 var (
-	primaryColor = cli.PrimaryColor
-	accentColor  = cli.AccentColor
-	mutedColor   = cli.MutedColor
-
-	// Disco ball gradient colours
 	gradientIndigo = cli.GradientIndigo
 	gradientWhite  = cli.GradientWhite
 )
@@ -19,12 +14,12 @@ var (
 // Header style for section titles
 var headerStyle = lipgloss.NewStyle().
 	Bold(true).
-	Foreground(primaryColor).
+	Foreground(cli.PrimaryColor).
 	MarginBottom(1)
 
 // Spinner style for the encoding progress indicator
 var spinnerStyle = lipgloss.NewStyle().
-	Foreground(accentColor)
+	Foreground(cli.AccentColor)
 
 // Shared styles from cli package
 var (
@@ -38,7 +33,7 @@ var (
 
 // Muted text style (no cli equivalent)
 var mutedStyle = lipgloss.NewStyle().
-	Foreground(mutedColor).
+	Foreground(cli.MutedColor).
 	Italic(true)
 
 // clockStyle renders the elapsed/remaining MM:SS values in white, matching the
