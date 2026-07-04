@@ -297,7 +297,7 @@ More content.
 	updatedContent := string(updated)
 
 	// Verify fields were added before closing delimiter
-	if !strings.Contains(updatedContent, "podcast_duration: 01:23:45") {
+	if !strings.Contains(updatedContent, `podcast_duration: "01:23:45"`) {
 		t.Error("podcast_duration field not found in updated frontmatter")
 	}
 	if !strings.Contains(updatedContent, "podcast_bytes: 5555555") {
@@ -375,7 +375,7 @@ Episode content.
 	updatedContent := string(updated)
 
 	// Verify fields were updated with new values
-	if !strings.Contains(updatedContent, "podcast_duration: 01:23:45") {
+	if !strings.Contains(updatedContent, `podcast_duration: "01:23:45"`) {
 		t.Error("podcast_duration not updated correctly")
 	}
 	if !strings.Contains(updatedContent, "podcast_bytes: 5555555") {
@@ -383,7 +383,7 @@ Episode content.
 	}
 
 	// Verify old values are gone
-	if strings.Contains(updatedContent, "podcast_duration: 00:10:00") {
+	if strings.Contains(updatedContent, `podcast_duration: "00:10:00"`) {
 		t.Error("Old podcast_duration value still present")
 	}
 	if strings.Contains(updatedContent, "podcast_bytes: 1000000") {
@@ -423,7 +423,7 @@ Episode content.
 	updatedContent := string(updated)
 
 	// Verify both fields are now correct
-	if !strings.Contains(updatedContent, "podcast_duration: 00:15:00") {
+	if !strings.Contains(updatedContent, `podcast_duration: "00:15:00"`) {
 		t.Error("podcast_duration not updated")
 	}
 	if !strings.Contains(updatedContent, "podcast_bytes: 3333333") {
@@ -572,7 +572,7 @@ Episode content.
 
 	updatedContent := string(updated)
 
-	if !strings.Contains(updatedContent, "podcast_duration: 54:32:10") {
+	if !strings.Contains(updatedContent, `podcast_duration: "54:32:10"`) {
 		t.Error("Duration not updated correctly")
 	}
 	if !strings.Contains(updatedContent, "podcast_bytes: 104857600") {
@@ -611,7 +611,7 @@ Episode content.
 
 	updatedContent := string(updated)
 
-	if !strings.Contains(updatedContent, "podcast_duration: 00:00:00") {
+	if !strings.Contains(updatedContent, `podcast_duration: "00:00:00"`) {
 		t.Error("Zero duration not handled correctly")
 	}
 	if !strings.Contains(updatedContent, "podcast_bytes: 0") {
@@ -647,7 +647,7 @@ episode_image: "/img/test.png"
 	updatedContent := string(updated)
 
 	// Verify fields were added
-	if !strings.Contains(updatedContent, "podcast_duration: 00:10:00") {
+	if !strings.Contains(updatedContent, `podcast_duration: "00:10:00"`) {
 		t.Error("podcast_duration not added")
 	}
 	if !strings.Contains(updatedContent, "podcast_bytes: 1000000") {
@@ -690,7 +690,7 @@ Episode content.
 	updatedContent := string(updated)
 
 	// Verify fields were added and multiline content preserved
-	if !strings.Contains(updatedContent, "podcast_duration: 00:25:00") {
+	if !strings.Contains(updatedContent, `podcast_duration: "00:25:00"`) {
 		t.Error("podcast_duration not added")
 	}
 	if !strings.Contains(updatedContent, "This is a multiline") {

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/linuxmatters/jive-encoder/internal/id3"
+	"github.com/linuxmatters/jive-encoder/internal/artwork"
 )
 
 // TestNewFormatResolution verifies that New defaults an empty Format to the
@@ -382,7 +382,7 @@ func probeFormatTags(t *testing.T, path string) map[string]string {
 // the attached-picture stream behaviour per format: MP3 and AAC are
 // cover-capable and must carry an attached-picture video stream, while Opus is
 // not cover-capable and must stay audio-only. The cover bytes come from
-// id3.ScaleCoverArt on a real testdata PNG fixture.
+// artwork.ScaleCoverArt on a real testdata PNG fixture.
 func TestEncodeCoverArt_Integration(t *testing.T) {
 	inputPath := "../../testdata/LMP0.flac"
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
@@ -396,7 +396,7 @@ func TestEncodeCoverArt_Integration(t *testing.T) {
 	if _, err := os.Stat(coverPath); os.IsNotExist(err) {
 		t.Skipf("Cover fixture not found: %s", coverPath)
 	}
-	cover, err := id3.ScaleCoverArt(coverPath)
+	cover, err := artwork.ScaleCoverArt(coverPath)
 	if err != nil {
 		t.Fatalf("ScaleCoverArt failed: %v", err)
 	}

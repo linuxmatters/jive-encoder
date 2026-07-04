@@ -59,7 +59,6 @@ var formatPresets = map[string]formatPreset{
 		coverCapable:  true,
 		encoderOpts: map[string]string{
 			"compression_level": "3",
-			"cutoff":            "20500",
 		},
 	},
 	"aac": {

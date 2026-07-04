@@ -13,7 +13,7 @@ func progressView(m *EncodeModel) string {
 	var b strings.Builder
 
 	// Persistent spinner accent rendered off the shared tick (see encode.go).
-	spinnerGlyph := spinnerStyle.Render(spinnerFrames[m.anim.spinnerFrame%len(spinnerFrames)])
+	spinnerGlyph := spinnerStyle.Render(spinnerFrames[m.anim.spinnerFrame])
 
 	// Before the first non-zero progress, FFmpeg is still initialising, so the
 	// spinner stands in as an indeterminate indicator with a "preparing" cue.

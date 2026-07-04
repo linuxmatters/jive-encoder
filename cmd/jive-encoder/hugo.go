@@ -7,7 +7,6 @@ import (
 
 	"github.com/linuxmatters/jive-encoder/internal/cli"
 	"github.com/linuxmatters/jive-encoder/internal/encoder"
-	"github.com/linuxmatters/jive-encoder/internal/id3"
 )
 
 // Hugo mode metadata defaults for the Linux Matters podcast.
@@ -51,10 +50,10 @@ func (h *HugoWorkflow) Validate() error {
 
 // CollectMetadata parses Hugo frontmatter, applies defaults and flag overrides,
 // and resolves the cover art path.
-func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
+func (h *HugoWorkflow) CollectMetadata() (encoder.Metadata, string, error) {
 	metadata, err := encoder.ParseEpisodeMetadata(h.opts.EpisodeMD)
 	if err != nil {
-		return id3.TagInfo{}, "", fmt.Errorf("failed to parse episode metadata: %w", err)
+		return encoder.Metadata{}, "", fmt.Errorf("failed to parse episode metadata: %w", err)
 	}
 	h.hugoMetadata = metadata
 
@@ -79,7 +78,7 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 		episodeNum = h.opts.Num
 	}
 	if _, err := encoder.ParseEpisodeNumber(episodeNum); err != nil {
-		return id3.TagInfo{}, "", fmt.Errorf("invalid episode number: %w", err)
+		return encoder.Metadata{}, "", fmt.Errorf("invalid episode number: %w", err)
 	}
 	if h.opts.Date != "" {
 		date = h.opts.Date
@@ -91,11 +90,11 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 	} else {
 		coverArtPath, err = encoder.ResolveCoverArtPath(h.opts.EpisodeMD, metadata.EpisodeImage)
 		if err != nil {
-			return id3.TagInfo{}, "", fmt.Errorf("failed to resolve cover art: %w", err)
+			return encoder.Metadata{}, "", fmt.Errorf("failed to resolve cover art: %w", err)
 		}
 	}
 
-	tagInfo := id3.TagInfo{
+	tags := encoder.Metadata{
 		EpisodeNumber: episodeNum,
 		Title:         episodeTitle,
 		Artist:        artist,
@@ -104,7 +103,7 @@ func (h *HugoWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 		Comment:       comment,
 	}
 
-	return tagInfo, coverArtPath, nil
+	return tags, coverArtPath, nil
 }
 
 // PostEncode displays podcast statistics and handles frontmatter comparison and update prompting.

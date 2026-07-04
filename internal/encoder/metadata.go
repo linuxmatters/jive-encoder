@@ -253,7 +253,9 @@ func UpdateFrontmatter(markdownPath, duration string, bytes int64) error {
 		line := lines[i]
 
 		if strings.HasPrefix(strings.TrimSpace(line), "podcast_duration:") {
-			lines[i] = fmt.Sprintf("podcast_duration: %s", duration)
+			// Quote the duration: unquoted HH:MM:SS parses as a sexagesimal
+			// number under YAML 1.1.
+			lines[i] = fmt.Sprintf("podcast_duration: %q", duration)
 			updated = true
 		}
 
@@ -267,7 +269,7 @@ func UpdateFrontmatter(markdownPath, duration string, bytes int64) error {
 	if !updated || !bytesUpdated {
 		var insertLines []string
 		if !updated {
-			insertLines = append(insertLines, fmt.Sprintf("podcast_duration: %s", duration))
+			insertLines = append(insertLines, fmt.Sprintf("podcast_duration: %q", duration))
 		}
 		if !bytesUpdated {
 			insertLines = append(insertLines, fmt.Sprintf("podcast_bytes: %d", bytes))

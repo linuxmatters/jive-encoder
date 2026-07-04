@@ -5,7 +5,6 @@ import (
 
 	"github.com/linuxmatters/jive-encoder/internal/cli"
 	"github.com/linuxmatters/jive-encoder/internal/encoder"
-	"github.com/linuxmatters/jive-encoder/internal/id3"
 )
 
 // Workflow defines the mode-specific operations for Hugo and Standalone workflows.
@@ -14,10 +13,10 @@ type Workflow interface {
 	// Validate checks mode-specific arguments and file existence.
 	Validate() error
 
-	// CollectMetadata gathers ID3 tag info and cover art path for the current mode.
-	// The cover art path is returned separately because it feeds the concurrent
-	// cover art goroutine, not TagInfo directly.
-	CollectMetadata() (id3.TagInfo, string, error)
+	// CollectMetadata gathers episode tag metadata and the cover art path for the
+	// current mode. The cover art path is returned separately because it feeds
+	// artwork.ScaleCoverArt, not the metadata tags directly.
+	CollectMetadata() (encoder.Metadata, string, error)
 
 	// PostEncode handles post-encoding operations: stats display and,
 	// in Hugo mode, frontmatter comparison and update prompting.

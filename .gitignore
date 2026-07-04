@@ -1,6 +1,10 @@
 .direnv
 /jive-encoder
-testdata/
+testdata/*
+!testdata/0.md
+!testdata/LMP0.flac
+!testdata/linuxmatters-3000x3000.png
 *.mp3
 *.opus
 *.m4a
+coverage.out

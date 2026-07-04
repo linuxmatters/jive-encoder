@@ -1,15 +1,20 @@
-package id3
+package artwork
 
 import (
 	"bytes"
 	"image"
 	"image/color"
+	"image/jpeg"
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
+
+// pngMagic is the eight-byte PNG file signature.
+var pngMagic = []byte("\x89PNG\r\n\x1a\n")
 
 // TestScaleCoverArt_ValidSquareImage tests scaling of valid square images
 func TestScaleCoverArt_ValidSquareImage(t *testing.T) {
@@ -288,8 +293,8 @@ func TestScaleCoverArt_OutputIsPNG(t *testing.T) {
 	}
 }
 
-// TestScaleCoverArt_SkipPNGReencoding tests that PNG images in acceptable range
-// are not re-encoded, preserving the original PNG data for performance
+// TestScaleCoverArt_SkipPNGReencoding tests that an in-spec PNG passes through
+// with its original bytes untouched, avoiding a needless re-encode
 func TestScaleCoverArt_SkipPNGReencoding(t *testing.T) {
 	tmpDir := t.TempDir()
 	testImagePath := filepath.Join(tmpDir, "test_3000.png")
@@ -299,11 +304,10 @@ func TestScaleCoverArt_SkipPNGReencoding(t *testing.T) {
 		t.Fatalf("Failed to create test PNG: %v", err)
 	}
 
-	originalInfo, err := os.Stat(testImagePath)
+	originalData, err := os.ReadFile(testImagePath)
 	if err != nil {
-		t.Fatalf("Failed to stat original file: %v", err)
+		t.Fatalf("Failed to read original file: %v", err)
 	}
-	originalSize := originalInfo.Size()
 
 	scaledData, err := ScaleCoverArt(testImagePath)
 	if err != nil {
@@ -314,26 +318,60 @@ func TestScaleCoverArt_SkipPNGReencoding(t *testing.T) {
 		t.Fatal("ScaleCoverArt returned nil data")
 	}
 
-	scaledSize := int64(len(scaledData))
+	// An in-spec PNG must return the original bytes byte-for-byte
+	if !bytes.Equal(scaledData, originalData) {
+		t.Errorf("Expected original PNG bytes to pass through untouched: got %d bytes, original %d bytes", len(scaledData), len(originalData))
+	}
+}
 
-	// For PNG images in acceptable range with no scaling, the output should
-	// be very close in size to the original (may not be identical due to
-	// re-encoding, but should preserve the PNG efficiently)
-	// We allow up to 10% deviation to account for PNG compression variations
-	maxDeviation := originalSize / 10
-	if scaledSize > originalSize+maxDeviation || scaledSize < originalSize-maxDeviation {
-		t.Logf("Warning: output size %d differs from original %d by more than 10%%", scaledSize, originalSize)
+// TestScaleCoverArt_InSpecJPEG tests that an in-spec JPEG re-encodes to PNG
+// even though no scaling is needed
+func TestScaleCoverArt_InSpecJPEG(t *testing.T) {
+	tmpDir := t.TempDir()
+	testImagePath := filepath.Join(tmpDir, "test.jpg")
+
+	if err := createTestJPEG(testImagePath, 1500, 1500); err != nil {
+		t.Fatalf("Failed to create test JPEG: %v", err)
 	}
 
-	// Verify output is valid PNG with correct dimensions
+	scaledData, err := ScaleCoverArt(testImagePath)
+	if err != nil {
+		t.Fatalf("ScaleCoverArt failed: %v", err)
+	}
+
+	// The non-PNG path must re-encode to PNG
+	if !bytes.HasPrefix(scaledData, pngMagic) {
+		t.Errorf("Expected output to start with PNG magic header, got % x", scaledData[:min(len(scaledData), 8)])
+	}
+}
+
+// TestScaleCoverArt_OutOfSpecJPEG tests that an undersized JPEG scales up
+// and re-encodes to PNG
+func TestScaleCoverArt_OutOfSpecJPEG(t *testing.T) {
+	tmpDir := t.TempDir()
+	testImagePath := filepath.Join(tmpDir, "test.jpg")
+
+	if err := createTestJPEG(testImagePath, 800, 800); err != nil {
+		t.Fatalf("Failed to create test JPEG: %v", err)
+	}
+
+	scaledData, err := ScaleCoverArt(testImagePath)
+	if err != nil {
+		t.Fatalf("ScaleCoverArt failed: %v", err)
+	}
+
+	if !bytes.HasPrefix(scaledData, pngMagic) {
+		t.Errorf("Expected output to start with PNG magic header, got % x", scaledData[:min(len(scaledData), 8)])
+	}
+
 	decodedImg, err := png.Decode(bytes.NewReader(scaledData))
 	if err != nil {
 		t.Fatalf("Failed to decode scaled image: %v", err)
 	}
 
 	bounds := decodedImg.Bounds()
-	if bounds.Dx() != 3000 || bounds.Dy() != 3000 {
-		t.Errorf("Expected 3000x3000, got %dx%d", bounds.Dx(), bounds.Dy())
+	if bounds.Dx() != 1400 || bounds.Dy() != 1400 {
+		t.Errorf("Expected 1400x1400, got %dx%d", bounds.Dx(), bounds.Dy())
 	}
 }
 
@@ -443,7 +481,7 @@ func TestScaleCoverArt_MultipleScalings(t *testing.T) {
 	}
 
 	for i, tt := range sizes {
-		testImagePath := filepath.Join(tmpDir, "test_"+string(rune(48+i))+".png")
+		testImagePath := filepath.Join(tmpDir, "test_"+strconv.Itoa(i)+".png")
 
 		if err := createTestPNG(testImagePath, tt.inputSize, tt.inputSize); err != nil {
 			t.Fatalf("Failed to create test PNG: %v", err)
@@ -489,4 +527,27 @@ func createTestPNG(path string, width, height int) error {
 	defer file.Close()
 
 	return png.Encode(file, img)
+}
+
+// Helper function to create test JPEG images
+func createTestJPEG(path string, width, height int) error {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+
+	// Fill with a gradient pattern for visual distinctiveness
+	for y := range height {
+		for x := range width {
+			r := uint8((x * 255) / width)                  //nolint:gosec // test code, values bounded by image dimensions
+			g := uint8((y * 255) / height)                 //nolint:gosec // test code, values bounded by image dimensions
+			b := uint8(((x + y) * 255) / (width + height)) //nolint:gosec // test code, values bounded by image dimensions
+			img.SetRGBA(x, y, color.RGBA{R: r, G: g, B: b, A: 255})
+		}
+	}
+
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return jpeg.Encode(file, img, &jpeg.Options{Quality: 90})
 }

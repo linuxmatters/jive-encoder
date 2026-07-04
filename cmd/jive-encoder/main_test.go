@@ -367,15 +367,17 @@ func TestGenerateFilename(t *testing.T) {
 // TestResolveOutputPath tests output path resolution with directories and files
 func TestResolveOutputPath(t *testing.T) {
 	tests := []struct {
-		name       string
-		outputPath string
-		mode       WorkflowMode
-		num        string
-		artist     string
-		cliArtist  string
-		ext        string
-		wantErr    bool
-		wantPath   string // Substring check for path validation
+		name          string
+		outputPath    string
+		mode          WorkflowMode
+		num           string
+		artist        string
+		cliArtist     string
+		ext           string
+		wantErr       bool
+		wantPath      string // Substring check for path validation
+		useTempDir    bool   // Replace outputPath with a fresh temp directory
+		wantInTempDir bool   // Prefix wantPath with the temp directory
 	}{
 		// Empty output path - use current directory with generated filename
 		{
@@ -413,15 +415,17 @@ func TestResolveOutputPath(t *testing.T) {
 		},
 		// Existing directory - generate filename within it
 		{
-			name:       "existing directory",
-			outputPath: "", // Will be set to temp dir in test
-			mode:       StandaloneMode,
-			num:        "1",
-			artist:     "Show",
-			cliArtist:  "Show",
-			ext:        ".mp3",
-			wantErr:    false,
-			wantPath:   "show-1.mp3",
+			name:          "existing directory",
+			outputPath:    "", // Replaced with temp dir via useTempDir
+			mode:          StandaloneMode,
+			num:           "1",
+			artist:        "Show",
+			cliArtist:     "Show",
+			ext:           ".mp3",
+			wantErr:       false,
+			wantPath:      "show-1.mp3",
+			useTempDir:    true,
+			wantInTempDir: true,
 		},
 		// Explicit file path - use as-is
 		{
@@ -438,7 +442,7 @@ func TestResolveOutputPath(t *testing.T) {
 		// File path in existing directory
 		{
 			name:       "file path in existing temp directory",
-			outputPath: "", // Will be set in test
+			outputPath: "", // Replaced with temp dir via useTempDir
 			mode:       HugoMode,
 			num:        "99",
 			artist:     "",
@@ -446,6 +450,7 @@ func TestResolveOutputPath(t *testing.T) {
 			ext:        ".m4a",
 			wantErr:    false,
 			wantPath:   "LMP99.m4a",
+			useTempDir: true,
 		},
 		// Error cases: non-existent directory
 		{
@@ -476,11 +481,11 @@ func TestResolveOutputPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Handle dynamic temp directory paths
 			testOutputPath := tt.outputPath
-			if tt.name == "existing directory" || tt.name == "file path in existing temp directory" {
-				tmpDir := t.TempDir()
-				testOutputPath = tmpDir
-				if tt.name == "existing directory" {
-					tt.wantPath = filepath.Join(testOutputPath, tt.wantPath)
+			wantPath := tt.wantPath
+			if tt.useTempDir {
+				testOutputPath = t.TempDir()
+				if tt.wantInTempDir {
+					wantPath = filepath.Join(testOutputPath, wantPath)
 				}
 			}
 
@@ -498,8 +503,8 @@ func TestResolveOutputPath(t *testing.T) {
 				return
 			}
 
-			if tt.wantPath != "" && !isPathMatch(result, tt.wantPath) {
-				t.Errorf("resolveOutputPath() = %q; want path containing %q", result, tt.wantPath)
+			if wantPath != "" && !isPathMatch(result, wantPath) {
+				t.Errorf("resolveOutputPath() = %q; want path containing %q", result, wantPath)
 			}
 		})
 	}
@@ -677,6 +682,32 @@ func TestDetectMode(t *testing.T) {
 			episodeMD: "episode-67_final.md",
 			expected:  HugoMode,
 		},
+
+		// Realistic CLI invocations
+		{
+			name:      "real hugo workflow: LMP67.flac content/episodes/67.md",
+			audioFile: "LMP67.flac",
+			episodeMD: "content/episodes/67.md",
+			expected:  HugoMode,
+		},
+		{
+			name:      "real standalone workflow: podcast.wav with flags only",
+			audioFile: "podcast.wav",
+			episodeMD: "",
+			expected:  StandaloneMode,
+		},
+		{
+			name:      "common mistake: non-md episode file falls back to standalone",
+			audioFile: "episode.flac",
+			episodeMD: "episode.txt",
+			expected:  StandaloneMode,
+		},
+		{
+			name:      "uppercase .MD extension for cross-platform",
+			audioFile: "LMP99.flac",
+			episodeMD: "99.MD",
+			expected:  HugoMode,
+		},
 	}
 
 	for _, tt := range tests {
@@ -686,57 +717,6 @@ func TestDetectMode(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("detectMode() = %v; want %v (AudioFile=%q, EpisodeMD=%q)",
 					result, tt.expected, tt.audioFile, tt.episodeMD)
-			}
-		})
-	}
-}
-
-// TestDetectMode_Integration tests detectMode in realistic scenarios
-func TestDetectMode_Integration(t *testing.T) {
-	tests := []struct {
-		name        string
-		audioFile   string
-		episodeMD   string
-		expected    WorkflowMode
-		description string
-	}{
-		{
-			name:        "real hugo workflow",
-			audioFile:   "LMP67.flac",
-			episodeMD:   "content/episodes/67.md",
-			expected:    HugoMode,
-			description: "User runs: jive-encoder LMP67.flac content/episodes/67.md",
-		},
-		{
-			name:        "real standalone workflow",
-			audioFile:   "podcast.wav",
-			episodeMD:   "",
-			expected:    StandaloneMode,
-			description: "User runs: jive-encoder podcast.wav --title 'Ep 1' --num 1 --cover art.png",
-		},
-		{
-			name:        "common mistake: user passes non-md file in hugo mode",
-			audioFile:   "episode.flac",
-			episodeMD:   "episode.txt",
-			expected:    StandaloneMode,
-			description: "User runs: jive-encoder episode.flac episode.txt (should be .md not .txt)",
-		},
-		{
-			name:        "edge: .md file with uppercase extension",
-			audioFile:   "LMP99.flac",
-			episodeMD:   "99.MD",
-			expected:    HugoMode,
-			description: "Handles .MD (uppercase) correctly for cross-platform",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := detectMode(tt.audioFile, tt.episodeMD)
-
-			if result != tt.expected {
-				t.Errorf("detectMode() = %v; want %v\n  Description: %s\n  AudioFile=%q, EpisodeMD=%q",
-					result, tt.expected, tt.description, tt.audioFile, tt.episodeMD)
 			}
 		})
 	}

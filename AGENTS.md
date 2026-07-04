@@ -19,7 +19,7 @@ nix develop  # Enter NixOS development shell (ffmpeg, lame, mediainfo, just, go)
 just build      # Build binary with version from git tags (CGO_ENABLED=1)
 just test       # Run all Go tests
 just test-encoder  # Integration test: encode testdata/LMP67.flac
-just clean      # Remove build artifacts and test outputs (*.mp3)
+just clean      # Remove build artifacts and test outputs (*.mp3/*.m4a/*.opus)
 ```
 
 ## Architecture
@@ -36,9 +36,8 @@ internal/
     preset.go            # Per-format preset table (codec, bitrate, sample fmt/rate, muxer, extension, lowpass, cover)
     metadata.go          # Hugo frontmatter parsing (YAML between --- delimiters) + muxer tag assembly
     stats.go             # Duration/filesize extraction from the encoded file
-  id3/                   # Cover-art scaling and tag-field carrier (no ID3 writer; FFmpeg muxers write tags)
+  artwork/               # Cover-art scaling (no tag writer; FFmpeg muxers write tags)
     artwork.go           # Cover art scaling (1400-3000px range for Apple Podcasts)
-    taginfo.go           # TagInfo carrier for episode metadata fields
   ui/                    # Bubbletea TUI for encoding progress
     encode.go            # Progress model with realtime speed calculation
   cli/                   # Lipgloss-styled output
@@ -85,7 +84,7 @@ third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.1 static bindings
 - Tagging is FFmpeg muxer-native: standard keys (`title`/`artist`/`album`/`date`/`comment`/`track`) go into an `AVDictionary` on the output format context before `AVFormatWriteHeader`, so each muxer writes its own format: ID3v2.4 (MP3, via the `id3v2_version=4` WriteHeader muxer option), iTunes MP4 atoms (M4A), Vorbis comments (Opus)
 - Title renders `"{episode}: {title}"`; track maps to the episode number; empty fields are skipped
 - Cover is an attached-picture stream (`AVDispositionAttachedPic`) written right after the header, for cover-capable formats (MP3, AAC) only. **Opus has no embedded cover** (text tags only)
-- `bogem/id3v2` is removed. `internal/id3/` holds only `artwork.go` (cover scaling) and `taginfo.go` (the `TagInfo` carrier)
+- `bogem/id3v2` is removed. `internal/artwork/` holds cover scaling; `encoder.Metadata` is the single tag-field carrier from the CLI workflows to the encoder
 
 ## Code Conventions
 

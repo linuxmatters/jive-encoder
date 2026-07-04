@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"image/png"
+	"maps"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"unsafe"
@@ -22,7 +24,7 @@ const (
 	StereoBitrate = 192000
 )
 
-// Encoder handles MP3 encoding from audio input files
+// Encoder handles audio encoding (MP3, AAC, Opus) from audio input files
 type Encoder struct {
 	inputPath  string
 	outputPath string
@@ -60,9 +62,9 @@ type Encoder struct {
 }
 
 // Metadata carries episode tag fields into the encoder so it can write
-// muxer-native metadata during Initialize/Encode. It mirrors the text fields of
-// the id3 tag set but lives in the encoder package to avoid an encoder->id3
-// import cycle (id3 is being removed).
+// muxer-native metadata during Initialize/Encode. It is the single tag-field
+// carrier: the CLI workflows build it and the encoder maps its fields to
+// standard muxer tag keys.
 type Metadata struct {
 	EpisodeNumber string
 	Title         string
@@ -189,7 +191,7 @@ func (e *Encoder) openInput() error {
 	return nil
 }
 
-// openOutput creates the output MP3 file and sets up the encoder
+// openOutput creates the output file for the preset's format and sets up the encoder
 func (e *Encoder) openOutput() error {
 	namePtr := ffmpeg.ToCStr(e.outputPath)
 	defer namePtr.Free()
@@ -238,10 +240,19 @@ func (e *Encoder) openOutput() error {
 	tb.SetDen(e.encCtx.SampleRate())
 	e.encCtx.SetTimeBase(tb)
 
-	// Encoder tuning passed through AVDictionary, driven by the preset.
+	// Encoder tuning passed through AVDictionary, driven by the preset. The
+	// lowpass cutoff comes from the preset's lowpassHz so the preset table
+	// stays the single source of truth.
 	var opts *ffmpeg.AVDictionary
 
-	for key, val := range e.preset.encoderOpts {
+	encoderOpts := e.preset.encoderOpts
+	if e.preset.lowpassHz > 0 {
+		encoderOpts = make(map[string]string, len(e.preset.encoderOpts)+1)
+		maps.Copy(encoderOpts, e.preset.encoderOpts)
+		encoderOpts["cutoff"] = strconv.Itoa(e.preset.lowpassHz)
+	}
+
+	for key, val := range encoderOpts {
 		keyPtr := ffmpeg.ToCStr(key)
 		valPtr := ffmpeg.ToCStr(val)
 		_, err := ffmpeg.AVDictSet(&opts, keyPtr, valPtr, 0)
@@ -644,7 +655,7 @@ func (e *Encoder) drainFilterGraph(outStream *ffmpeg.AVStream) error {
 	return nil
 }
 
-// encodeFrame encodes a single audio frame to MP3
+// encodeFrame encodes a single audio frame with the preset's codec
 func (e *Encoder) encodeFrame(frame *ffmpeg.AVFrame, outStream *ffmpeg.AVStream) error {
 	// Stamp a monotonic PTS from the running sample counter so the filter's
 	// reframing does not leave gaps the encoder would reject.

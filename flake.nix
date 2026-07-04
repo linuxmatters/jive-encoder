@@ -1,5 +1,5 @@
 {
-  description = "MP3 encoder for linuxmatters.sh";
+  description = "Podcast encoder (MP3, AAC, Opus) for linuxmatters.sh";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";

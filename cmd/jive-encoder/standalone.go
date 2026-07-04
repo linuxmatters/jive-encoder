@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/linuxmatters/jive-encoder/internal/encoder"
-	"github.com/linuxmatters/jive-encoder/internal/id3"
 )
 
 // StandaloneWorkflow implements the Workflow interface for standalone mode.
@@ -40,11 +39,11 @@ func (s *StandaloneWorkflow) Validate() error {
 	return nil
 }
 
-// CollectMetadata builds TagInfo from CLI flags.
-func (s *StandaloneWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
+// CollectMetadata builds the episode tag metadata from CLI flags.
+func (s *StandaloneWorkflow) CollectMetadata() (encoder.Metadata, string, error) {
 	album := resolveAlbum(s.opts.Album, s.opts.Artist)
 
-	tagInfo := id3.TagInfo{
+	tags := encoder.Metadata{
 		EpisodeNumber: s.opts.Num,
 		Title:         s.opts.Title,
 		Artist:        s.opts.Artist,
@@ -53,7 +52,7 @@ func (s *StandaloneWorkflow) CollectMetadata() (id3.TagInfo, string, error) {
 		Comment:       s.opts.Comment,
 	}
 
-	return tagInfo, s.opts.Cover, nil
+	return tags, s.opts.Cover, nil
 }
 
 // PostEncode displays podcast statistics. Standalone mode has no frontmatter to update.

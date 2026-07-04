@@ -124,7 +124,7 @@ func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, 
 	}
 }
 
-// Init initializes the model and starts encoding
+// Init initialises the model and starts encoding
 func (m *EncodeModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.startEncoding(),

@@ -2,10 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/kong"
+	"github.com/charmbracelet/colorprofile"
 )
 
 // Custom help styles using shared disco ball palette 🪩
@@ -37,80 +39,80 @@ var (
 				Italic(true)
 )
 
-// StyledHelpPrinter creates a custom help printer with Lipgloss styling
-func StyledHelpPrinter(options kong.HelpOptions) kong.HelpPrinter {
-	return kong.HelpPrinter(func(options kong.HelpOptions, ctx *kong.Context) error {
-		var sb strings.Builder
+// StyledHelpPrinter is a kong.HelpPrinter that renders help with Lipgloss styling
+func StyledHelpPrinter(options kong.HelpOptions, ctx *kong.Context) error {
+	var sb strings.Builder
 
-		// Title and description
-		sb.WriteString(TitleStyle.Render("Jive Encoder 🪩"))
-		sb.WriteString("\n")
-		sb.WriteString(helpDescStyle.Render("Drop your podcast .wav into a shiny MP3, AAC, or Opus with metadata, cover art, and all."))
-		sb.WriteString("\n")
+	// Title and description
+	sb.WriteString(TitleStyle.Render(AppTitle))
+	sb.WriteString("\n")
+	sb.WriteString(helpDescStyle.Render(ctx.Model.Help))
+	sb.WriteString("\n")
 
-		// Usage
-		sb.WriteString(helpSectionStyle.Render("Usage:"))
-		sb.WriteString("\n  ")
-		sb.WriteString(helpModeStyle.Render("Hugo mode:"))
-		sb.WriteString("\n    ")
-		fmt.Fprintf(&sb, "%s <audio-file> <episode-md> [flags]", ctx.Model.Name)
-		sb.WriteString("\n  ")
-		sb.WriteString(helpModeStyle.Render("Standalone mode:"))
-		sb.WriteString("\n    ")
-		fmt.Fprintf(&sb, "%s <audio-file> --title TEXT --num NUMBER --cover PATH [flags]", ctx.Model.Name)
-		sb.WriteString("\n")
+	// Usage
+	sb.WriteString(helpSectionStyle.Render("Usage:"))
+	sb.WriteString("\n  ")
+	sb.WriteString(helpModeStyle.Render("Hugo mode:"))
+	sb.WriteString("\n    ")
+	fmt.Fprintf(&sb, "%s <audio-file> <episode-md> [flags]", ctx.Model.Name)
+	sb.WriteString("\n  ")
+	sb.WriteString(helpModeStyle.Render("Standalone mode:"))
+	sb.WriteString("\n    ")
+	fmt.Fprintf(&sb, "%s <audio-file> --title TEXT --num NUMBER --cover PATH [flags]", ctx.Model.Name)
+	sb.WriteString("\n")
 
-		// Arguments section
-		args := getArguments(ctx)
-		if len(args) > 0 {
-			sb.WriteString("\n")
-			sb.WriteString(helpSectionStyle.Render("Arguments:"))
-			sb.WriteString("\n")
-			for _, arg := range args {
+	// Arguments section
+	args := getArguments(ctx)
+	if len(args) > 0 {
+		sb.WriteString("\n")
+		sb.WriteString(helpSectionStyle.Render("Arguments:"))
+		sb.WriteString("\n")
+		for _, arg := range args {
+			sb.WriteString("  ")
+			sb.WriteString(helpArgStyle.Render(arg.name))
+			if arg.help != "" {
 				sb.WriteString("  ")
-				sb.WriteString(helpArgStyle.Render(arg.name))
-				if arg.help != "" {
-					sb.WriteString("  ")
-					sb.WriteString(arg.help)
-				}
-				sb.WriteString("\n")
+				sb.WriteString(arg.help)
 			}
-		}
-
-		// Flags section
-		flags := getFlags(ctx)
-		if len(flags) > 0 {
 			sb.WriteString("\n")
-			sb.WriteString(helpSectionStyle.Render("Flags:"))
-			sb.WriteString("\n")
-			for _, flag := range flags {
-				sb.WriteString("  ")
-				sb.WriteString(helpFlagStyle.Render(flag.flags))
-				if flag.help != "" {
-					sb.WriteString("  ")
-					sb.WriteString(flag.help)
-				}
-				if flag.defaultVal != "" {
-					sb.WriteString(" ")
-					sb.WriteString(helpDefaultStyle.Render("(default: " + flag.defaultVal + ")"))
-				}
-				sb.WriteString("\n")
-			}
 		}
+	}
 
+	// Flags section
+	flags := getFlags(ctx)
+	if len(flags) > 0 {
 		sb.WriteString("\n")
-		fmt.Fprint(ctx.Stdout, sb.String())
-		return nil
-	})
+		sb.WriteString(helpSectionStyle.Render("Flags:"))
+		sb.WriteString("\n")
+		for _, flag := range flags {
+			sb.WriteString("  ")
+			sb.WriteString(helpFlagStyle.Render(flag.flags))
+			if flag.help != "" {
+				sb.WriteString("  ")
+				sb.WriteString(flag.help)
+			}
+			if flag.defaultVal != "" {
+				sb.WriteString(" ")
+				sb.WriteString(helpDefaultStyle.Render("(default: " + flag.defaultVal + ")"))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	sb.WriteString("\n")
+	// Degrade colour for non-TTY output, honouring NO_COLOR and TERM
+	w := colorprofile.NewWriter(ctx.Stdout, os.Environ())
+	fmt.Fprint(w, sb.String())
+	return nil
 }
 
-// Argument represents a CLI argument
+// argument represents a CLI argument
 type argument struct {
 	name string
 	help string
 }
 
-// Flag represents a CLI flag
+// flag represents a CLI flag
 type flag struct {
 	flags      string
 	help       string
@@ -156,10 +158,15 @@ func getFlags(ctx *kong.Context) []flag {
 			flagStr += "=" + strings.ToUpper(f.PlaceHolder)
 		}
 
+		var defaultVal string
+		if f.HasDefault {
+			defaultVal = f.Default
+		}
+
 		flags = append(flags, flag{
 			flags:      flagStr,
 			help:       f.Help,
-			defaultVal: f.FormatPlaceHolder(),
+			defaultVal: defaultVal,
 		})
 	}
 
