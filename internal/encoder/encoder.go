@@ -3,6 +3,7 @@ package encoder
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -216,9 +217,19 @@ func (e *Encoder) openInput() error {
 type ProgressCallback func(samplesProcessed, totalSamples int64)
 
 // Encode performs the actual encoding with progress callbacks
-func (e *Encoder) Encode(progressCb ProgressCallback) error {
+func (e *Encoder) Encode(progressCb ProgressCallback) (err error) {
 	packet := ffmpeg.AVPacketAlloc()
 	defer ffmpeg.AVPacketFree(&packet)
+
+	// Any error return (including ErrCancelled) leaves a truncated output file.
+	// Remove it so a failed or cancelled run leaves nothing behind; a successful
+	// encode keeps the file. os.Remove is idempotent, so the CLI caller's own
+	// cleanup after Encode stays a safe no-op.
+	defer func() {
+		if err != nil {
+			os.Remove(e.outputPath)
+		}
+	}()
 
 	outStream := e.output.format.Streams().Get(uintptr(e.output.audioStreamIndex)) //nolint:gosec // audioStreamIndex is set from AVFormatNewStream in openOutput
 

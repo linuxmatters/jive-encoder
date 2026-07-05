@@ -309,6 +309,13 @@ func run() int {
 		kong.Help(cli.StyledHelpPrinter),
 	)
 
+	return dispatch(ctx)
+}
+
+// dispatch runs the post-parse argument logic and returns the process exit code.
+// It is split from run() so tests can drive it with a kong context built from an
+// explicit argument slice, without kong.Parse reading the test binary's os.Args.
+func dispatch(ctx *kong.Context) int {
 	if CLI.Version {
 		cli.PrintVersion(version)
 		return 0

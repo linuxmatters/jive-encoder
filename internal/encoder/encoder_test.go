@@ -975,6 +975,53 @@ func TestEncoder_CancelBeforeEncode(t *testing.T) {
 	enc.Close()
 }
 
+// TestEncoder_PartialFileRemovedOnError verifies that an Encode that returns an
+// error leaves no partial output file behind. Cancelling on the first progress
+// callback deterministically forces an error return (ErrCancelled) after the
+// output file has been opened and partially written, so the deferred cleanup in
+// Encode must remove the truncated file.
+func TestEncoder_PartialFileRemovedOnError(t *testing.T) {
+	inputPath := "../../testdata/LMP0.flac"
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		t.Skipf("Test file not found: %s", inputPath)
+	}
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "partial.mp3")
+
+	enc, err := New(Config{
+		InputPath:  inputPath,
+		OutputPath: outputPath,
+		Stereo:     false,
+	})
+	if err != nil {
+		t.Fatalf("Failed to create encoder: %v", err)
+	}
+	defer enc.Close()
+
+	if err := enc.Initialize(); err != nil {
+		t.Fatalf("Failed to initialize encoder: %v", err)
+	}
+
+	// The output file exists from Initialize (AVIOOpen), so removal on the error
+	// path is meaningful. Cancel on the first callback to force the error return.
+	var callbacks int
+	cb := func(samplesProcessed, totalSamples int64) {
+		callbacks++
+		if callbacks == 1 {
+			enc.Cancel()
+		}
+	}
+
+	if err := enc.Encode(cb); err == nil {
+		t.Fatal("expected Encode to return an error after Cancel, got nil")
+	}
+
+	if _, err := os.Stat(outputPath); !os.IsNotExist(err) {
+		t.Errorf("partial output file remains after failed encode: %v", err)
+	}
+}
+
 // TestEncoder_GetDurationSecs verifies duration calculation after encoding
 func TestEncoder_GetDurationSecs(t *testing.T) {
 	inputPath := "../../testdata/LMP0.flac"
