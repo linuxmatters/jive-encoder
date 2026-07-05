@@ -8,7 +8,7 @@ import (
 	"github.com/alecthomas/kong"
 )
 
-// Custom help styles using shared disco ball palette 🪩
+// Custom help styles using shared palette 🗜️
 var (
 	helpModeStyle = lipgloss.NewStyle().
 			Bold(true).

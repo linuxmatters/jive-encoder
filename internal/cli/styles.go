@@ -10,7 +10,7 @@ import (
 )
 
 // AppTitle is the styled application title shown in version and help output
-const AppTitle = "Jive Encoder 🪩"
+const AppTitle = "Jive Encoder 🗜️"
 
 var (
 	// Colour-profile-aware writers: degrade colour for non-TTY output,
@@ -24,7 +24,7 @@ func newColourWriter(w io.Writer) *colorprofile.Writer {
 }
 
 var (
-	// Title style - bold blue with disco ball emoji
+	// Title style - bold blue with clamp emoji
 	TitleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(PrimaryColor).

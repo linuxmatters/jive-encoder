@@ -1,4 +1,4 @@
-# Jive Encoder 🪩
+# Jive Encoder 🗜️
 
 *Formerly known as Jivedrop.*
 
