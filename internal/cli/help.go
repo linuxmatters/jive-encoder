@@ -40,6 +40,10 @@ var (
 // StyledHelpPrinter is a kong.HelpPrinter that builds the help text with
 // Lipgloss styling, then writes it through a colour-profile writer so colour
 // degrades for non-TTY output.
+//
+// The options parameter is intentionally unused: the printer renders a fixed
+// custom layout, so its Compact, Summary and Tree fields have no effect. The
+// parameter stays only because Kong's HelpPrinter type requires this signature.
 func StyledHelpPrinter(options kong.HelpOptions, ctx *kong.Context) error {
 	var sb strings.Builder
 
@@ -145,6 +149,9 @@ func getFlags(ctx *kong.Context) []flag {
 	for _, f := range ctx.Model.Flags {
 		if f.Name == "help" {
 			continue // Already added above.
+		}
+		if f.Hidden {
+			continue // Hidden flags are omitted from help output.
 		}
 
 		var flagStr string

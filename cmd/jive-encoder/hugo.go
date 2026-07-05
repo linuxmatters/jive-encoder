@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -28,7 +29,7 @@ type HugoWorkflow struct {
 // Validate checks Hugo-specific arguments and file existence.
 func (h *HugoWorkflow) Validate() error {
 	if h.opts.EpisodeMD == "" {
-		return fmt.Errorf("hugo mode requires episode markdown file as second argument")
+		return errors.New("hugo mode requires episode markdown file as second argument")
 	}
 
 	if !isMarkdownPath(h.opts.EpisodeMD) {
@@ -115,6 +116,12 @@ func (h *HugoWorkflow) CollectMetadata() (encoder.Metadata, string, error) {
 // new podcast_duration/podcast_bytes and waits for confirmation before writing, so a non-mp3
 // encode cannot silently overwrite values for a different enclosure.
 func (h *HugoWorkflow) PostEncode(stats *encoder.FileStats) error {
+	// hugoMetadata is populated by CollectMetadata; guard the implicit ordering
+	// so an out-of-order call returns an error instead of a nil-deref panic.
+	if h.hugoMetadata == nil {
+		return errors.New("PostEncode called before CollectMetadata")
+	}
+
 	printPodcastStats(stats)
 
 	needsUpdate := false

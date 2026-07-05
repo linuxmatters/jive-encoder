@@ -130,12 +130,18 @@ func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, 
 
 // Init initialises the model and starts encoding
 func (m *EncodeModel) Init() tea.Cmd {
-	m.anim.ticking = true
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		m.startEncoding(),
 		m.waitForProgress(),
-		m.tickFrame(),
-	)
+	}
+	// The frame-tick loop only drives the rendered animation. Under WithoutRenderer
+	// mode View emits nothing, so skip the loop rather than reschedule 60 ticks a
+	// second that produce no output.
+	if !m.nonInteractive {
+		m.anim.ticking = true
+		cmds = append(cmds, m.tickFrame())
+	}
+	return tea.Batch(cmds...)
 }
 
 // Update handles messages
@@ -213,6 +219,12 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settling = true
 		m.anim.settleStart = time.Now()
 		m.anim.finalSpeed = m.calculateSpeed()
+		if m.nonInteractive {
+			// Headless: there is no bar to settle, so quit as soon as Encode
+			// returns rather than start a tick loop. settling stays set for
+			// symmetry with the TTY path.
+			return m, tea.Quit
+		}
 		// The Init tick loop is still live here (it reschedules while !complete),
 		// so let it carry the settle. Only start a loop if none is running,
 		// preventing a second concurrent loop that runs the settle at ~2x.
@@ -257,6 +269,11 @@ func (m *EncodeModel) View() tea.View {
 // startEncoding starts the encoding process in a goroutine
 func (m *EncodeModel) startEncoding() tea.Cmd {
 	return func() tea.Msg {
+		// The encoder must invoke this progress callback synchronously, from the
+		// same goroutine that runs Encode. That contract is what makes the close
+		// below safe: because no callback can run once Encode has returned, the
+		// non-blocking send here can never race the close (a concurrent send on a
+		// closed channel would panic).
 		err := m.encoder.Encode(func(samplesProcessed, totalSamples int64) {
 			select {
 			case m.progressChan <- ProgressUpdate{
@@ -268,7 +285,8 @@ func (m *EncodeModel) startEncoding() tea.Cmd {
 			}
 		})
 
-		// Closing the channel signals completion to waitForProgress.
+		// Encode has returned, so no further sends are possible; closing the
+		// channel now signals completion to waitForProgress.
 		close(m.progressChan)
 
 		return EncodingCompleteMsg{Err: err}
@@ -320,8 +338,8 @@ func (m *EncodeModel) calculateSpeed() float64 {
 
 // calculateTimeRemaining returns estimated time remaining
 func (m *EncodeModel) calculateTimeRemaining() time.Duration {
-	progress := m.calculateProgress()
-	if progress <= 0 || progress >= 100 {
+	pct := m.calculateProgress()
+	if pct <= 0 || pct >= 100 {
 		return 0
 	}
 
@@ -329,7 +347,7 @@ func (m *EncodeModel) calculateTimeRemaining() time.Duration {
 
 	// Extrapolate linearly from progress so far: elapsed time scaled to 100%
 	// gives the estimated total, minus what has already elapsed.
-	totalEstimated := float64(elapsed) * 100.0 / progress
+	totalEstimated := float64(elapsed) * 100.0 / pct
 	remaining := time.Duration(totalEstimated) - elapsed
 
 	return remaining

@@ -120,6 +120,11 @@ func miniBar(fraction float64) string {
 
 // completeView renders the completion message
 func completeView(m *EncodeModel) string {
+	// Deliberately freeze elapsed at the last progress update, not the live clock,
+	// so the final figure is stable and does not keep ticking after the encode has
+	// finished. progressView uses the live time.Since(startTime), so the value may
+	// step back by up to one frame's wall-clock at this transition; that small step
+	// is expected.
 	elapsed := formatDurationHuman(m.lastUpdateTime.Sub(m.startTime))
 	speed := m.anim.finalSpeed
 
