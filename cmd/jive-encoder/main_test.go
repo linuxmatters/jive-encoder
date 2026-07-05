@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/alecthomas/kong"
+	"github.com/linuxmatters/jive-encoder/internal/cli"
 )
 
 // TestSanitiseForFilename tests filename sanitisation for dangerous and special characters
@@ -439,26 +442,29 @@ func BenchmarkGenerateFilename(b *testing.B) {
 }
 
 // TestFormatFlag verifies the --format Kong enum accepts the three supported
-// formats, rejects unknown values at parse time, and defaults to mp3.
+// formats, rejects unknown values at parse time, and defaults to mp3. It parses
+// the real package-level CLI struct so the test guards the actual flag tag, not
+// a copy of it.
 func TestFormatFlag(t *testing.T) {
-	type formatCLI struct {
-		Format string `enum:"mp3,opus,aac" default:"mp3"`
-	}
+	// CLI is package-level mutable state shared with other tests. Parsing applies
+	// defaults to it, so snapshot and restore it around the parse.
+	saved := CLI
+	defer func() { CLI = saved }()
 
 	parse := func(args []string) (string, error) {
-		var c formatCLI
-		parser, err := kong.New(&c)
+		CLI = saved
+		parser, err := kong.New(&CLI)
 		if err != nil {
 			t.Fatalf("failed to build parser: %v", err)
 		}
 		if _, err := parser.Parse(args); err != nil {
 			return "", err
 		}
-		return c.Format, nil
+		return CLI.Format, nil
 	}
 
 	t.Run("opus accepted", func(t *testing.T) {
-		got, err := parse([]string{"--format", "opus"})
+		got, err := parse([]string{"audio.flac", "--format", "opus"})
 		if err != nil {
 			t.Fatalf("expected --format opus to parse, got error: %v", err)
 		}
@@ -467,14 +473,24 @@ func TestFormatFlag(t *testing.T) {
 		}
 	})
 
+	t.Run("aac accepted", func(t *testing.T) {
+		got, err := parse([]string{"audio.flac", "--format", "aac"})
+		if err != nil {
+			t.Fatalf("expected --format aac to parse, got error: %v", err)
+		}
+		if got != "aac" {
+			t.Fatalf("expected format aac, got %q", got)
+		}
+	})
+
 	t.Run("flac rejected", func(t *testing.T) {
-		if _, err := parse([]string{"--format", "flac"}); err == nil {
+		if _, err := parse([]string{"audio.flac", "--format", "flac"}); err == nil {
 			t.Fatal("expected --format flac to be rejected by the enum")
 		}
 	})
 
 	t.Run("defaults to mp3", func(t *testing.T) {
-		got, err := parse(nil)
+		got, err := parse([]string{"audio.flac"})
 		if err != nil {
 			t.Fatalf("expected default invocation to parse, got error: %v", err)
 		}
@@ -482,4 +498,158 @@ func TestFormatFlag(t *testing.T) {
 			t.Fatalf("expected default format mp3, got %q", got)
 		}
 	})
+}
+
+// buildDispatchContext parses args against the real package-level CLI struct and
+// returns a kong context for dispatch(). Writers go to buf and exit is stubbed so
+// a parse error or usage print does not end the test.
+func buildDispatchContext(t *testing.T, buf *bytes.Buffer, args []string) *kong.Context {
+	t.Helper()
+	parser, err := kong.New(&CLI,
+		kong.Name("jive-encoder"),
+		kong.Writers(buf, buf),
+		kong.Exit(func(int) {}),
+	)
+	if err != nil {
+		t.Fatalf("failed to build parser: %v", err)
+	}
+	ctx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatalf("failed to parse args %v: %v", args, err)
+	}
+	return ctx
+}
+
+// TestDispatch covers the pure argument-dispatch branches of run() that return
+// before any FFmpeg encoding starts. The encode path is exercised by the
+// integration test, not here.
+func TestDispatch(t *testing.T) {
+	// dispatch reads the package-level CLI, which parsing mutates, so snapshot
+	// and restore it around the whole test.
+	saved := CLI
+	defer func() { CLI = saved }()
+
+	// A real, accessible audio file lets dispatch pass the stat check and reach
+	// mode-specific workflow validation without touching FFmpeg.
+	audioFile := filepath.Join(t.TempDir(), "audio.flac")
+	if err := os.WriteFile(audioFile, []byte("dummy"), 0o644); err != nil {
+		t.Fatalf("failed to create test audio file: %v", err)
+	}
+
+	tests := []struct {
+		name     string
+		args     []string
+		wantCode int
+	}{
+		{
+			name:     "version short-circuit",
+			args:     []string{"--version"},
+			wantCode: 0,
+		},
+		{
+			name:     "missing audio file is a usage error",
+			args:     nil,
+			wantCode: 1,
+		},
+		{
+			name:     "inaccessible audio file",
+			args:     []string{filepath.Join(t.TempDir(), "does-not-exist.flac")},
+			wantCode: 1,
+		},
+		{
+			name:     "standalone validation failure (no title)",
+			args:     []string{audioFile},
+			wantCode: 1,
+		},
+		{
+			name:     "hugo validation failure (missing markdown)",
+			args:     []string{audioFile, filepath.Join(t.TempDir(), "missing.md")},
+			wantCode: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			CLI = saved
+			var buf bytes.Buffer
+			ctx := buildDispatchContext(t, &buf, tt.args)
+			if got := dispatch(ctx); got != tt.wantCode {
+				t.Errorf("dispatch(%v) = %d; want %d", tt.args, got, tt.wantCode)
+			}
+		})
+	}
+}
+
+// TestUsageTextMatchesModel locks the hand-written usage examples in
+// cli.StyledHelpPrinter to the real CLI Kong model. The usage lines hardcode
+// flag and positional names; renaming a field on the CLI struct (or its Kong
+// name tag) without updating the usage text would leave the help lying. This
+// renders the help for the real model and fails if any flag or positional named
+// in the usage examples no longer exists on the model.
+func TestUsageTextMatchesModel(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	var out bytes.Buffer
+	parser, err := kong.New(&CLI,
+		kong.Name("jive-encoder"),
+		kong.Exit(func(int) {}),
+		kong.Writers(&out, &bytes.Buffer{}),
+	)
+	if err != nil {
+		t.Fatalf("kong.New() error = %v", err)
+	}
+	ctx, err := parser.Parse([]string{})
+	if err != nil {
+		t.Fatalf("parser.Parse() error = %v", err)
+	}
+
+	if err := cli.StyledHelpPrinter(kong.HelpOptions{}, ctx); err != nil {
+		t.Fatalf("StyledHelpPrinter() error = %v", err)
+	}
+
+	// Build the sets of real flag and positional names from the Kong model.
+	flagNames := map[string]bool{}
+	for _, f := range ctx.Model.Flags {
+		flagNames[f.Name] = true
+	}
+	posNames := map[string]bool{}
+	for _, p := range ctx.Model.Positional {
+		posNames[p.Name] = true
+	}
+
+	// Keep only the usage example lines (those invoking the program by name).
+	var usage []string
+	for line := range strings.SplitSeq(out.String(), "\n") {
+		if strings.Contains(line, "jive-encoder <") {
+			usage = append(usage, line)
+		}
+	}
+	if len(usage) != 2 {
+		t.Fatalf("expected 2 usage example lines, got %d: %q", len(usage), usage)
+	}
+	usageText := strings.Join(usage, "\n")
+
+	// Every --flag named in the usage examples must exist on the model.
+	flagRe := regexp.MustCompile(`--([a-z-]+)`)
+	for _, m := range flagRe.FindAllStringSubmatch(usageText, -1) {
+		if !flagNames[m[1]] {
+			t.Errorf("usage text references --%s, which is not a flag on the CLI model; update the usage text or the flag", m[1])
+		}
+	}
+
+	// Every <positional> named in the usage examples must exist on the model.
+	posRe := regexp.MustCompile(`<([a-z-]+)>`)
+	for _, m := range posRe.FindAllStringSubmatch(usageText, -1) {
+		if !posNames[m[1]] {
+			t.Errorf("usage text references <%s>, which is not a positional on the CLI model; update the usage text or the argument", m[1])
+		}
+	}
+
+	// The finding names these three standalone flags; guard against dropping
+	// them from the usage line, not just renaming them.
+	for _, want := range []string{"title", "num", "cover"} {
+		if !strings.Contains(usageText, "--"+want) {
+			t.Errorf("standalone usage text no longer mentions --%s", want)
+		}
+	}
 }

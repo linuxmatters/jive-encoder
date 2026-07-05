@@ -69,12 +69,23 @@ func (e *Encoder) initFilter() error {
 	defer ffmpeg.AVFilterInoutFree(&outputs)
 	defer ffmpeg.AVFilterInoutFree(&inputs)
 
-	outputs.SetName(ffmpeg.ToCStr("in"))
+	// AVFilterInoutFree frees the name via av_freep, so allocate it with the
+	// FFmpeg allocator (av_strdup) to match the free routing. av_strdup returns
+	// nil on OOM, so check before SetName to avoid a nil deref.
+	outName := ffmpeg.AVStrdup(ffmpeg.GlobalCStr("in"))
+	if outName == nil {
+		return fmt.Errorf("failed to allocate filter endpoint name %q", "in")
+	}
+	outputs.SetName(outName)
 	outputs.SetFilterCtx(e.filter.src)
 	outputs.SetPadIdx(0)
 	outputs.SetNext(nil)
 
-	inputs.SetName(ffmpeg.ToCStr("out"))
+	inName := ffmpeg.AVStrdup(ffmpeg.GlobalCStr("out"))
+	if inName == nil {
+		return fmt.Errorf("failed to allocate filter endpoint name %q", "out")
+	}
+	inputs.SetName(inName)
 	inputs.SetFilterCtx(e.filter.sink)
 	inputs.SetPadIdx(0)
 	inputs.SetNext(nil)
