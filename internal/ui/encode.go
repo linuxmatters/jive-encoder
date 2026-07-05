@@ -100,7 +100,7 @@ type EncodeModel struct {
 func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, nonInteractive bool) *EncodeModel {
 	sampleRate, channels, format := enc.GetInputInfo()
 
-	// Disco ball gradient: indigo → white (cool shimmer effect)
+	// Gradient: indigo → white (cool shimmer effect)
 	p := progress.New(
 		progress.WithColors(gradientIndigo, gradientWhite),
 		progress.WithWidth(progressBarWidth),

@@ -75,7 +75,7 @@ func TestStyledHelpPrinterGolden(t *testing.T) {
 		t.Fatalf("StyledHelpPrinter() error = %v", err)
 	}
 
-	const golden = `Jive Encoder 🪩
+	const golden = `Jive Encoder 🗜️
 
 Encode podcast audio.
 
