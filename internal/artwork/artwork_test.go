@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/color"
+	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -376,6 +377,36 @@ func TestScaleCoverArt_OutOfSpecJPEG(t *testing.T) {
 	}
 }
 
+// TestScaleCoverArt_OutOfSpecGIF tests that an undersized GIF decodes, scales up
+// and re-encodes to PNG
+func TestScaleCoverArt_OutOfSpecGIF(t *testing.T) {
+	tmpDir := t.TempDir()
+	testImagePath := filepath.Join(tmpDir, "test.gif")
+
+	if err := createTestGIF(testImagePath, 800, 800); err != nil {
+		t.Fatalf("Failed to create test GIF: %v", err)
+	}
+
+	scaledData, err := ScaleCoverArt(testImagePath)
+	if err != nil {
+		t.Fatalf("ScaleCoverArt failed: %v", err)
+	}
+
+	if !bytes.HasPrefix(scaledData, pngMagic) {
+		t.Errorf("Expected output to start with PNG magic header, got % x", scaledData[:min(len(scaledData), 8)])
+	}
+
+	decodedImg, err := png.Decode(bytes.NewReader(scaledData))
+	if err != nil {
+		t.Fatalf("Failed to decode scaled image: %v", err)
+	}
+
+	bounds := decodedImg.Bounds()
+	if bounds.Dx() != 1400 || bounds.Dy() != 1400 {
+		t.Errorf("Expected 1400x1400, got %dx%d", bounds.Dx(), bounds.Dy())
+	}
+}
+
 // TestScaleCoverArt_EdgeCases tests edge case sizes
 func TestScaleCoverArt_EdgeCases(t *testing.T) {
 	tests := []struct {
@@ -460,9 +491,11 @@ func TestScaleCoverArt_OutputDataSize(t *testing.T) {
 		t.Errorf("Output data too small: %d bytes (expected > 1KB)", len(scaledData))
 	}
 
-	// Verify it's not excessively large (should be reasonable for a 1400x1400 PNG)
-	if len(scaledData) > 50*1024*1024 {
-		t.Errorf("Output data too large: %d bytes", len(scaledData))
+	// A PNG of this content cannot exceed its uncompressed RGBA pixel data, so
+	// 1400x1400x4 bytes is a tight upper bound that still catches a gross regression.
+	maxSize := 1400 * 1400 * 4
+	if len(scaledData) > maxSize {
+		t.Errorf("Output data too large: %d bytes (expected <= %d)", len(scaledData), maxSize)
 	}
 }
 
@@ -516,6 +549,13 @@ func createTestPNG(path string, width, height int) error {
 func createTestJPEG(path string, width, height int) error {
 	return createTestImage(path, width, height, func(w io.Writer, img image.Image) error {
 		return jpeg.Encode(w, img, &jpeg.Options{Quality: 90})
+	})
+}
+
+// Helper function to create test GIF images
+func createTestGIF(path string, width, height int) error {
+	return createTestImage(path, width, height, func(w io.Writer, img image.Image) error {
+		return gif.Encode(w, img, nil)
 	})
 }
 

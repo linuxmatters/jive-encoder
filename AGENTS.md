@@ -109,6 +109,11 @@ third_party/ffmpeg-statigo/  # Git submodule: FFmpeg 8.1 static bindings
 - **Shell:** Fish (interactive), bash (scripts)
 - **CGO required:** Set `CGO_ENABLED=1` for builds
 
+## CI and Dependencies
+
+- **Release checksums:** GitHub attaches SHA256 sums to all release artifacts automatically. Do not hand-roll a checksum step.
+- **Dependabot Nix:** Dependabot supports the `nix` ecosystem and updates `flake.lock`. The entry in `.github/dependabot.yml` is expected.
+
 ## FFmpeg-Statigo Submodule
 
 This project uses [`ffmpeg-statigo`](https://github.com/linuxmatters/ffmpeg-statigo) for FFmpeg 8.1 static bindings:

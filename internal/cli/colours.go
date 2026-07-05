@@ -12,9 +12,10 @@ var (
 	TextColor      = lipgloss.Color("#FFFFFF") // White
 	ErrorColor     = lipgloss.Color("#DA70D6") // Orchid
 	SecondaryColor = lipgloss.Color("#9370DB") // Medium purple
-	BorderColor    = lipgloss.Color("#00BFFF") // Deep sky blue
+	WarningColor   = lipgloss.Color("#FFA500") // Orange
+	BorderColor    = PrimaryColor              // Deep sky blue
 
 	// Gradient colours.
 	GradientIndigo = lipgloss.Color("#4B0082") // Deep indigo
-	GradientWhite  = lipgloss.Color("#E0E0E0") // Light grey
+	GradientWhite  = HighlightColor            // Light grey
 )

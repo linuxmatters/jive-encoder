@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -70,20 +71,23 @@ func TestNewFormatResolution(t *testing.T) {
 	})
 }
 
-// TestEncodeToMP3_Integration is an integration test that verifies
-// the full encoding pipeline works and creates a test MP3 file that
-// other tests can use for validation.
+// TestEncodeToMP3_Integration is an integration test that verifies the full
+// MP3 encoding pipeline works for mono and stereo output. It probes each output
+// with ffprobe to confirm the channel count, sample rate, and bitrate landed.
 func TestEncodeToMP3_Integration(t *testing.T) {
 	inputPath := "../../testdata/LMP0.flac"
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		t.Skipf("Test file not found: %s", inputPath)
 	}
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		t.Skip("ffprobe not available")
+	}
 
-	outputPath := "../../testdata/LMP0.mp3"
-
-	// Not cleaned up: other tests reuse this MP3, and it is already gitignored.
+	tmpDir := t.TempDir()
 
 	t.Run("mono encoding", func(t *testing.T) {
+		outputPath := filepath.Join(tmpDir, "LMP0.mp3")
+
 		enc, err := New(Config{
 			InputPath:  inputPath,
 			OutputPath: outputPath,
@@ -113,12 +117,14 @@ func TestEncodeToMP3_Integration(t *testing.T) {
 			t.Errorf("Output file too small: %d bytes", info.Size())
 		}
 
+		// Mono downmix must land as a single 44.1 kHz channel at the 112kbps CBR target.
+		assertAudioStream(t, outputPath, 1, 44100, 112000)
+
 		t.Logf("Created MP3: %s (%d bytes)", outputPath, info.Size())
 	})
 
 	t.Run("stereo encoding", func(t *testing.T) {
-		stereoOutput := "../../testdata/LMP0-stereo.mp3"
-		defer os.Remove(stereoOutput)
+		stereoOutput := filepath.Join(tmpDir, "LMP0-stereo.mp3")
 
 		enc, err := New(Config{
 			InputPath:  inputPath,
@@ -149,6 +155,9 @@ func TestEncodeToMP3_Integration(t *testing.T) {
 			t.Errorf("Stereo output file too small: %d bytes", info.Size())
 		}
 
+		// Stereo output must keep two 44.1 kHz channels at the 192kbps CBR target.
+		assertAudioStream(t, stereoOutput, 2, 44100, 192000)
+
 		t.Logf("Created stereo MP3: %s (%d bytes)", stereoOutput, info.Size())
 	})
 }
@@ -159,6 +168,9 @@ func TestEncodeToM4A_Integration(t *testing.T) {
 	inputPath := "../../testdata/LMP0.flac"
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		t.Skipf("Test file not found: %s", inputPath)
+	}
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		t.Skip("ffprobe not available")
 	}
 
 	t.Run("mono encoding", func(t *testing.T) {
@@ -194,6 +206,9 @@ func TestEncodeToM4A_Integration(t *testing.T) {
 		if info.Size() < 1024 {
 			t.Errorf("Output file too small: %d bytes", info.Size())
 		}
+
+		// Mono downmix must land as a single 44.1 kHz channel at the 64kbps CBR target.
+		assertAudioStream(t, outputPath, 1, 44100, 64000)
 
 		t.Logf("Created M4A: %s (%d bytes)", outputPath, info.Size())
 	})
@@ -232,6 +247,9 @@ func TestEncodeToM4A_Integration(t *testing.T) {
 			t.Errorf("Stereo output file too small: %d bytes", info.Size())
 		}
 
+		// Stereo output must keep two 44.1 kHz channels at the 128kbps CBR target.
+		assertAudioStream(t, stereoOutput, 2, 44100, 128000)
+
 		t.Logf("Created stereo M4A: %s (%d bytes)", stereoOutput, info.Size())
 	})
 }
@@ -243,6 +261,9 @@ func TestEncodeToOpus_Integration(t *testing.T) {
 	inputPath := "../../testdata/LMP0.flac"
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		t.Skipf("Test file not found: %s", inputPath)
+	}
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		t.Skip("ffprobe not available")
 	}
 
 	t.Run("mono encoding", func(t *testing.T) {
@@ -278,6 +299,10 @@ func TestEncodeToOpus_Integration(t *testing.T) {
 		if info.Size() < 1024 {
 			t.Errorf("Output file too small: %d bytes", info.Size())
 		}
+
+		// Opus decodes at 48 kHz and downmixes to mono; its VBR bitrate is not
+		// asserted (0) because ffprobe does not report a stable stream bit_rate.
+		assertAudioStream(t, outputPath, 1, 48000, 0)
 
 		t.Logf("Created Opus: %s (%d bytes)", outputPath, info.Size())
 	})
@@ -315,6 +340,9 @@ func TestEncodeToOpus_Integration(t *testing.T) {
 		if info.Size() < 1024 {
 			t.Errorf("Stereo output file too small: %d bytes", info.Size())
 		}
+
+		// Stereo output keeps two 48 kHz channels; VBR bitrate is not asserted (0).
+		assertAudioStream(t, stereoOutput, 2, 48000, 0)
 
 		t.Logf("Created stereo Opus: %s (%d bytes)", stereoOutput, info.Size())
 	})
@@ -490,11 +518,56 @@ func TestEncodeCoverArt_Integration(t *testing.T) {
 	}
 }
 
-// probeStream is a minimal ffprobe stream record covering the fields the cover
-// test asserts.
+// probeStream is a minimal ffprobe stream record covering the fields the
+// integration tests assert. ffprobe reports sample_rate and bit_rate as
+// strings.
 type probeStream struct {
 	CodecType   string         `json:"codec_type"`
+	Channels    int            `json:"channels"`
+	SampleRate  string         `json:"sample_rate"`
+	BitRate     string         `json:"bit_rate"`
 	Disposition map[string]int `json:"disposition"`
+}
+
+// assertAudioStream probes path and checks the audio stream carries the wanted
+// channel count and sample rate. When wantBitrate is positive it also asserts
+// the reported bitrate lands within 10% of the target; pass 0 to skip the
+// bitrate check for VBR formats where ffprobe reports no stable stream bit_rate.
+func assertAudioStream(t *testing.T, path string, wantChannels, wantSampleRate, wantBitrate int) {
+	t.Helper()
+
+	s := probeAudioStream(t, path)
+
+	if s.Channels != wantChannels {
+		t.Errorf("%s: channels = %d, want %d", path, s.Channels, wantChannels)
+	}
+
+	if sr, err := strconv.Atoi(s.SampleRate); err != nil || sr != wantSampleRate {
+		t.Errorf("%s: sample_rate = %q, want %d", path, s.SampleRate, wantSampleRate)
+	}
+
+	if wantBitrate > 0 {
+		br, err := strconv.Atoi(s.BitRate)
+		if err != nil {
+			t.Errorf("%s: bit_rate = %q, want within 10%% of %d", path, s.BitRate, wantBitrate)
+		} else if diff := br - wantBitrate; diff < -wantBitrate/10 || diff > wantBitrate/10 {
+			t.Errorf("%s: bit_rate = %d, want within 10%% of %d", path, br, wantBitrate)
+		}
+	}
+}
+
+// probeAudioStream returns the first audio stream ffprobe reports for path.
+func probeAudioStream(t *testing.T, path string) probeStream {
+	t.Helper()
+
+	for _, s := range probeStreams(t, path) {
+		if s.CodecType == "audio" {
+			return s
+		}
+	}
+
+	t.Fatalf("no audio stream in %s", path)
+	return probeStream{}
 }
 
 // probeStreams runs ffprobe -show_streams and returns the decoded stream list.

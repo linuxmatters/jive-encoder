@@ -48,8 +48,11 @@ func (s *StandaloneWorkflow) CollectMetadata() (encoder.Metadata, string, error)
 		Title:         s.opts.Title,
 		Artist:        s.opts.Artist,
 		Album:         album,
-		Date:          s.opts.Date,
-		Comment:       s.opts.Comment,
+		// --date is passed through raw: the user types the exact tag string.
+		// Hugo mode instead formats a parsed time.Time via FormatDateForID3
+		// (see hugo.go), because its date comes from frontmatter as a timestamp.
+		Date:    s.opts.Date,
+		Comment: s.opts.Comment,
 	}
 
 	return tags, s.opts.Cover, nil

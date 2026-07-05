@@ -136,19 +136,31 @@ func (e *Encoder) encoderOptions() (*ffmpeg.AVDictionary, error) {
 	}
 
 	var opts *ffmpeg.AVDictionary
-	for key, val := range encoderOpts {
-		keyPtr := ffmpeg.ToCStr(key)
-		valPtr := ffmpeg.ToCStr(val)
-		_, err := ffmpeg.AVDictSet(&opts, keyPtr, valPtr, 0)
-		keyPtr.Free()
-		valPtr.Free()
-		if err != nil {
-			ffmpeg.AVDictFree(&opts)
-			return nil, fmt.Errorf("failed to set encoder option %s: %w", key, err)
-		}
+	if err := setDictOptions(&opts, encoderOpts); err != nil {
+		return nil, err
 	}
 
 	return opts, nil
+}
+
+// setDictOptions sets each key/value pair from opts into dict, freeing the C
+// strings for both key and value after every entry. On the first failure it
+// frees dict and returns the error labelled with the offending key. The caller
+// owns dict and remains responsible for freeing it (or transferring ownership).
+func setDictOptions(dict **ffmpeg.AVDictionary, opts map[string]string) error {
+	for key, val := range opts {
+		keyPtr := ffmpeg.ToCStr(key)
+		valPtr := ffmpeg.ToCStr(val)
+		_, err := ffmpeg.AVDictSet(dict, keyPtr, valPtr, 0)
+		keyPtr.Free()
+		valPtr.Free()
+		if err != nil {
+			ffmpeg.AVDictFree(dict)
+			return fmt.Errorf("failed to set option %s: %w", key, err)
+		}
+	}
+
+	return nil
 }
 
 func (e *Encoder) writeHeader() error {
@@ -159,13 +171,8 @@ func (e *Encoder) writeHeader() error {
 	// WriteHeader options dict, not the format-context metadata. Other muxers
 	// ignore it.
 	if e.preset.name == "mp3" {
-		keyPtr := ffmpeg.ToCStr("id3v2_version")
-		valPtr := ffmpeg.ToCStr("4")
-		_, err := ffmpeg.AVDictSet(&muxerOpts, keyPtr, valPtr, 0)
-		keyPtr.Free()
-		valPtr.Free()
-		if err != nil {
-			return fmt.Errorf("failed to set id3v2_version option: %w", err)
+		if err := setDictOptions(&muxerOpts, map[string]string{"id3v2_version": "4"}); err != nil {
+			return err
 		}
 	}
 
@@ -186,17 +193,14 @@ func (e *Encoder) setMuxerMetadata() error {
 		return nil
 	}
 
-	var dict *ffmpeg.AVDictionary
+	opts := make(map[string]string, len(tags))
 	for _, tag := range tags {
-		keyPtr := ffmpeg.ToCStr(tag.Key)
-		valPtr := ffmpeg.ToCStr(tag.Value)
-		_, err := ffmpeg.AVDictSet(&dict, keyPtr, valPtr, 0)
-		keyPtr.Free()
-		valPtr.Free()
-		if err != nil {
-			ffmpeg.AVDictFree(&dict)
-			return fmt.Errorf("failed to set metadata %s: %w", tag.Key, err)
-		}
+		opts[tag.Key] = tag.Value
+	}
+
+	var dict *ffmpeg.AVDictionary
+	if err := setDictOptions(&dict, opts); err != nil {
+		return err
 	}
 
 	e.output.format.SetMetadata(dict)

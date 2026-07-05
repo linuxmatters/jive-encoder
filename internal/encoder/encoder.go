@@ -136,7 +136,11 @@ func (e *Encoder) Initialize() error {
 	// Keep stderr quiet: only surface FFmpeg errors, not its info/warning spam.
 	ffmpeg.AVLogSetLevel(ffmpeg.AVLogError)
 
+	// Every error path releases what was already opened. Close is idempotent
+	// (guarded by e.closed), so the caller's own deferred Close is a safe no-op
+	// after these calls.
 	if err := e.openInput(); err != nil {
+		e.Close()
 		return fmt.Errorf("failed to open input: %w", err)
 	}
 
@@ -150,6 +154,7 @@ func (e *Encoder) Initialize() error {
 	e.pipeline.packet = ffmpeg.AVPacketAlloc()
 
 	if err := e.initFilter(); err != nil {
+		e.Close()
 		return fmt.Errorf("failed to initialize filter: %w", err)
 	}
 

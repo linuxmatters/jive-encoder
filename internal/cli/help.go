@@ -102,8 +102,8 @@ func StyledHelpPrinter(options kong.HelpOptions, ctx *kong.Context) error {
 	sb.WriteString("\n")
 	// Degrade colour for non-TTY output, honouring NO_COLOR and TERM
 	w := newColourWriter(ctx.Stdout)
-	fmt.Fprint(w, sb.String())
-	return nil
+	_, err := fmt.Fprint(w, sb.String())
+	return err
 }
 
 // argument represents a CLI argument
