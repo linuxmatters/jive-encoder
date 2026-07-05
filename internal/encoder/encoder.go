@@ -3,6 +3,7 @@ package encoder
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 
@@ -108,6 +109,9 @@ func New(cfg Config) (*Encoder, error) {
 	preset, ok := presetFor(format)
 	if !ok {
 		return nil, fmt.Errorf("unknown output format: %q", format)
+	}
+	if outputExt := filepath.Ext(cfg.OutputPath); !strings.EqualFold(outputExt, preset.extension) {
+		return nil, fmt.Errorf("output path extension %q does not match %s format extension %q", outputExt, preset.name, preset.extension)
 	}
 
 	return &Encoder{

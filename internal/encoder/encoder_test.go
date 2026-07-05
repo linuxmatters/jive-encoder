@@ -40,6 +40,34 @@ func TestNewFormatResolution(t *testing.T) {
 			t.Fatalf("expected audioStreamIndex -1, got %d", enc.output.audioStreamIndex)
 		}
 	})
+
+	t.Run("mismatched explicit format extension errors", func(t *testing.T) {
+		if _, err := New(Config{
+			InputPath:  "in.flac",
+			OutputPath: "out.mp3",
+			Format:     "aac",
+		}); err == nil {
+			t.Fatal("expected error for mismatched output extension, got nil")
+		}
+	})
+
+	t.Run("mismatched default format extension errors", func(t *testing.T) {
+		if _, err := New(Config{
+			InputPath:  "in.flac",
+			OutputPath: "out.m4a",
+		}); err == nil {
+			t.Fatal("expected error for mismatched default output extension, got nil")
+		}
+	})
+
+	t.Run("extension matching is case-insensitive", func(t *testing.T) {
+		if _, err := New(Config{
+			InputPath:  "in.flac",
+			OutputPath: "out.MP3",
+		}); err != nil {
+			t.Fatalf("New failed for case-insensitive extension match: %v", err)
+		}
+	})
 }
 
 // TestEncodeToMP3_Integration is an integration test that verifies
