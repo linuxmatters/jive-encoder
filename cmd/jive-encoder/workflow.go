@@ -34,7 +34,7 @@ func resolveAlbum(album, artist string) string {
 
 // printPodcastStats displays the common podcast statistics shared by every workflow.
 func printPodcastStats(stats *encoder.FileStats) {
-	fmt.Println("\nPodcast statistics:")
+	cli.PrintInfo("Podcast statistics:")
 	cli.PrintLabelValue("•   podcast_duration:", stats.DurationString)
 	cli.PrintLabelValue("•   podcast_bytes:", fmt.Sprintf("%d", stats.FileSizeBytes))
 }

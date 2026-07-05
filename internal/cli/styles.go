@@ -43,7 +43,7 @@ var (
 	// Warning message style
 	WarningStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(SecondaryColor)
+			Foreground(WarningColor)
 
 	// Highlight style for important values
 	HighlightStyle = lipgloss.NewStyle().

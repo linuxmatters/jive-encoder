@@ -62,6 +62,9 @@ func (h *HugoWorkflow) CollectMetadata() (encoder.Metadata, string, error) {
 	episodeTitle := metadata.Title
 	artist := HugoDefaultArtist
 	comment := HugoDefaultComment
+	// Frontmatter supplies a parsed time.Time, so format it to the muxer's
+	// YYYY-MM tag string. Standalone mode instead passes --date through raw
+	// (see standalone.go), because there the user types the exact tag value.
 	date := encoder.FormatDateForID3(metadata.Date)
 
 	if h.opts.Artist != "" {
@@ -129,29 +132,33 @@ func (h *HugoWorkflow) PostEncode(stats *encoder.FileStats) error {
 	// A mismatch and a missing value both need confirmation, but each gets its
 	// own prompt wording so the user knows which case they are approving.
 	if needsUpdate {
-		promptAndUpdateFrontmatter(h.opts.EpisodeMD, "\nUpdate frontmatter with new values? [y/N]: ", stats.DurationString, stats.FileSizeBytes)
+		return promptAndUpdateFrontmatter(h.opts.EpisodeMD, "\nUpdate frontmatter with new values? [y/N]: ", stats.DurationString, stats.FileSizeBytes)
 	} else if h.hugoMetadata.PodcastDuration == "" || h.hugoMetadata.PodcastBytes == 0 {
-		promptAndUpdateFrontmatter(h.opts.EpisodeMD, "\nAdd podcast_duration and podcast_bytes to frontmatter? [y/N]: ", stats.DurationString, stats.FileSizeBytes)
+		return promptAndUpdateFrontmatter(h.opts.EpisodeMD, "\nAdd podcast_duration and podcast_bytes to frontmatter? [y/N]: ", stats.DurationString, stats.FileSizeBytes)
 	}
 
 	return nil
 }
 
-// promptAndUpdateFrontmatter prompts the user and updates the frontmatter with podcast stats
-func promptAndUpdateFrontmatter(markdownPath, promptMsg, duration string, bytes int64) {
+// promptAndUpdateFrontmatter prompts the user and updates the frontmatter with
+// podcast stats. A write failure is returned so the caller can exit non-zero;
+// declining the prompt is not an error.
+func promptAndUpdateFrontmatter(markdownPath, promptMsg, duration string, bytes int64) error {
 	fmt.Print(promptMsg)
 	var response string
 	_, _ = fmt.Scanln(&response)
 
-	if strings.ToLower(strings.TrimSpace(response)) == "y" {
-		if err := encoder.UpdateFrontmatter(markdownPath, duration, bytes); err != nil {
-			cli.PrintError(fmt.Sprintf("Failed to update frontmatter: %v", err))
-		} else {
-			cli.PrintSuccess("Frontmatter updated successfully")
-		}
-	} else {
+	if strings.ToLower(strings.TrimSpace(response)) != "y" {
 		cli.PrintInfo("Frontmatter not updated")
+		return nil
 	}
+
+	if err := encoder.UpdateFrontmatter(markdownPath, duration, bytes); err != nil {
+		return fmt.Errorf("failed to update frontmatter: %w", err)
+	}
+
+	cli.PrintSuccess("Frontmatter updated successfully")
+	return nil
 }
 
 // Ensure HugoWorkflow implements Workflow at compile time.

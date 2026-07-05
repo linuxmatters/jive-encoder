@@ -46,6 +46,8 @@ func ScaleCoverArt(inputPath string) ([]byte, error) {
 	var targetSize int
 	var needsScaling bool
 
+	// No lower sanity bound is deliberate: any square smaller than 1400 upscales
+	// to 1400, so even a 1x1 input is accepted and blown up to spec.
 	switch {
 	case width < 1400:
 		targetSize = 1400
@@ -65,7 +67,9 @@ func ScaleCoverArt(inputPath string) ([]byte, error) {
 		dst := image.NewRGBA(image.Rect(0, 0, targetSize, targetSize))
 
 		// Bilinear matches the scaler used by Jivefire thumbnail generation.
-		draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
+		// draw.Src writes the resized pixels straight into the fresh
+		// destination, the cheaper choice for a full-frame resize.
+		draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)
 
 		src = dst
 	}

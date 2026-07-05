@@ -46,9 +46,12 @@ var CLI struct {
 	OutputPath string `help:"Output file or directory path"`
 
 	// Encoding options
-	Format  string `help:"Output format: mp3, aac, or opus" enum:"mp3,opus,aac" default:"mp3"`
-	Stereo  bool   `help:"Encode as stereo at the format's stereo bitrate (default: mono)"`
-	Version bool   `help:"Show version information"`
+	Format string `help:"Output format: mp3, aac, or opus" enum:"mp3,opus,aac" default:"mp3"`
+	Stereo bool   `help:"Encode as stereo at the format's stereo bitrate (default: mono)"`
+	// Version is hand-checked in run() rather than using kong.VersionFlag so the
+	// styled cli.PrintVersion output (title banner + version) is preserved;
+	// kong.VersionFlag prints only the bare version string and exits.
+	Version bool `help:"Show version information"`
 }
 
 // detectMode reports whether the invocation is a Hugo or Standalone workflow.
@@ -311,9 +314,12 @@ func run() int {
 		return 0
 	}
 
+	// --help and --version already exited above; a bare invocation with no audio
+	// file is a usage error, so print usage and exit non-zero.
 	if CLI.AudioFile == "" {
+		cli.PrintError("audio file argument is required")
 		_ = ctx.PrintUsage(false)
-		return 0
+		return 1
 	}
 
 	mode := detectMode(CLI.EpisodeMD)

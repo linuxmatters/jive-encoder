@@ -49,6 +49,10 @@ type animState struct {
 	spinnerFrame int
 	tickCount    int
 	settleStart  time.Time
+	// ticking is true while a frame-tick loop is live. It gates the completion
+	// path so the success branch never starts a second concurrent loop while the
+	// Init loop is still rescheduling, which would double the spring/spinner rate.
+	ticking bool
 	// finalSpeed freezes the "Nx realtime" figure captured the instant encoding
 	// completes, so progressView renders a stable value through the settle phase.
 	finalSpeed float64
@@ -126,6 +130,7 @@ func NewEncodeModel(enc *encoder.Encoder, outputMode string, outputBitrate int, 
 
 // Init initialises the model and starts encoding
 func (m *EncodeModel) Init() tea.Cmd {
+	m.anim.ticking = true
 	return tea.Batch(
 		m.startEncoding(),
 		m.waitForProgress(),
@@ -172,6 +177,7 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			converged := math.Abs(m.anim.springPos-1) < settleEpsilon && math.Abs(m.anim.springVel) < settleEpsilon
 			if converged || time.Since(m.anim.settleStart) > settleCap {
 				m.settling = false
+				m.anim.ticking = false
 				return m, tea.Quit
 			}
 			return m, m.tickFrame()
@@ -179,6 +185,7 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.complete {
 			return m, m.tickFrame()
 		}
+		m.anim.ticking = false
 		return m, nil
 
 	case EncodingCompleteMsg:
@@ -206,6 +213,13 @@ func (m *EncodeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settling = true
 		m.anim.settleStart = time.Now()
 		m.anim.finalSpeed = m.calculateSpeed()
+		// The Init tick loop is still live here (it reschedules while !complete),
+		// so let it carry the settle. Only start a loop if none is running,
+		// preventing a second concurrent loop that runs the settle at ~2x.
+		if m.anim.ticking {
+			return m, nil
+		}
+		m.anim.ticking = true
 		return m, m.tickFrame()
 	}
 

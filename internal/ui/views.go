@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/linuxmatters/jive-encoder/internal/encoder"
@@ -36,7 +37,10 @@ func progressView(m *EncodeModel) string {
 	fmt.Fprintf(&b, "  %s", highlightStyle.Render(fmt.Sprintf("%3.0f%%", display*100)))
 	b.WriteString("\n\n")
 
-	elapsed := formatClock(m.lastUpdateTime.Sub(m.startTime))
+	// Use the live wall-clock base so elapsed shares the same time base as speed
+	// and remaining (both time.Since(startTime)); a frozen lastUpdateTime would
+	// read behind them between progress updates.
+	elapsed := formatClock(time.Since(m.startTime))
 	remaining := formatClock(m.calculateTimeRemaining())
 	// During settle the bar is at 100% but the loop keeps ticking; use the frozen
 	// speed so the figure does not drift as wall-clock time grows.
