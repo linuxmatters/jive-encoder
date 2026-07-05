@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/alecthomas/kong"
@@ -84,6 +85,46 @@ func TestGetFlags(t *testing.T) {
 	}
 	if len(flags) != 5 {
 		t.Errorf("len(flags) = %d; want 5", len(flags))
+	}
+}
+
+// hiddenFixture adds a hidden flag alongside a visible one.
+type hiddenFixture struct {
+	Format string `help:"Output format." default:"mp3"`
+	Debug  bool   `hidden:"" help:"Internal debug switch."`
+}
+
+func newHiddenContext(t *testing.T) *kong.Context {
+	t.Helper()
+
+	var fixture hiddenFixture
+	parser, err := kong.New(&fixture,
+		kong.Exit(func(int) {}),
+		kong.Writers(&bytes.Buffer{}, &bytes.Buffer{}),
+	)
+	if err != nil {
+		t.Fatalf("kong.New() error = %v", err)
+	}
+
+	ctx, err := parser.Parse([]string{})
+	if err != nil {
+		t.Fatalf("parser.Parse() error = %v", err)
+	}
+	return ctx
+}
+
+func TestGetFlagsSkipsHidden(t *testing.T) {
+	flags := getFlags(newHiddenContext(t))
+
+	for _, f := range flags {
+		if strings.Contains(f.flags, "debug") {
+			t.Errorf("hidden flag leaked into help output: %+v", f)
+		}
+	}
+
+	// Only the help flag and the visible --format flag survive.
+	if len(flags) != 2 {
+		t.Errorf("len(flags) = %d; want 2", len(flags))
 	}
 }
 

@@ -251,7 +251,12 @@ func TestHugoWorkflowPostEncode(t *testing.T) {
 			}
 
 			if tt.wantPrompt == "" {
-				if strings.Contains(out, "frontmatter") {
+				// The "[y/N]:" marker is printed only by the prompt (via fmt.Print
+				// to the captured stdout); its absence proves no prompt fired.
+				// captureStdio does not observe cli.PrintWarning output, but a
+				// warning never fires without a following prompt, so the marker is
+				// a sound signal.
+				if strings.Contains(out, "[y/N]:") {
 					t.Errorf("PostEncode() unexpectedly prompted: %q", out)
 				}
 				return

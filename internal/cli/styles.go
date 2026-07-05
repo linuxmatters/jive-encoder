@@ -23,6 +23,20 @@ func newColourWriter(w io.Writer) *colorprofile.Writer {
 	return colorprofile.NewWriter(w, os.Environ())
 }
 
+// SetOutput redirects the writers used by the Print* helpers, wrapping each
+// destination in a colour-profile writer so colour handling stays consistent.
+// It returns a function that restores the previous writers. This is a test
+// seam; production code writes to os.Stdout and os.Stderr.
+func SetOutput(out, errOut io.Writer) (restore func()) {
+	prevOut, prevErr := stdout, stderr
+	stdout = newColourWriter(out)
+	stderr = newColourWriter(errOut)
+	return func() {
+		stdout = prevOut
+		stderr = prevErr
+	}
+}
+
 var (
 	// Title style - bold blue with clamp emoji
 	TitleStyle = lipgloss.NewStyle().

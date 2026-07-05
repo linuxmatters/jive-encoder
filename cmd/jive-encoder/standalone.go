@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -17,11 +18,11 @@ type StandaloneWorkflow struct {
 // Validate checks standalone-specific arguments and file existence.
 func (s *StandaloneWorkflow) Validate() error {
 	if s.opts.Title == "" {
-		return fmt.Errorf("standalone mode requires --title flag")
+		return errors.New("standalone mode requires --title flag")
 	}
 
 	if s.opts.Num == "" {
-		return fmt.Errorf("standalone mode requires --num flag (episode number)")
+		return errors.New("standalone mode requires --num flag (episode number)")
 	}
 
 	if _, err := encoder.ParseEpisodeNumber(s.opts.Num); err != nil {
@@ -29,7 +30,7 @@ func (s *StandaloneWorkflow) Validate() error {
 	}
 
 	if s.opts.Cover == "" {
-		return fmt.Errorf("standalone mode requires --cover flag (cover art path)")
+		return errors.New("standalone mode requires --cover flag (cover art path)")
 	}
 
 	if _, err := os.Stat(s.opts.Cover); err != nil {

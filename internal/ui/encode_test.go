@@ -86,6 +86,40 @@ func TestEncodeModel_ErrorAfterCancel(t *testing.T) {
 	}
 }
 
+// TestFrameTickLoopGating verifies the 60fps animation loop only runs when a
+// renderer is present. In non-interactive (WithoutRenderer) mode Init must not
+// arm the tick loop, and a successful completion must quit at once rather than
+// schedule a settle tick; the interactive path still arms the loop.
+func TestFrameTickLoopGating(t *testing.T) {
+	t.Run("non-interactive Init schedules no tick", func(t *testing.T) {
+		m := newTestModel(t) // nonInteractive: true
+		m.Init()
+		if m.anim.ticking {
+			t.Errorf("non-interactive Init armed the frame-tick loop")
+		}
+	})
+
+	t.Run("interactive Init arms the tick loop", func(t *testing.T) {
+		m := newTestModel(t)
+		m.nonInteractive = false
+		m.Init()
+		if !m.anim.ticking {
+			t.Errorf("interactive Init did not arm the frame-tick loop")
+		}
+	})
+
+	t.Run("non-interactive success quits without ticking", func(t *testing.T) {
+		m := newTestModel(t)
+		_, cmd := m.Update(EncodingCompleteMsg{Err: nil})
+		if cmd == nil {
+			t.Fatalf("successful completion returned no command")
+		}
+		if _, ok := cmd().(tea.QuitMsg); !ok {
+			t.Errorf("non-interactive success did not quit; got a non-quit command")
+		}
+	})
+}
+
 // TestCalculateProgress covers the percentage helper, including the zero-total
 // guard that stands in before FFmpeg reports a sample count.
 func TestCalculateProgress(t *testing.T) {

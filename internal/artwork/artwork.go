@@ -66,15 +66,22 @@ func ScaleCoverArt(inputPath string) ([]byte, error) {
 	if needsScaling {
 		dst := image.NewRGBA(image.Rect(0, 0, targetSize, targetSize))
 
-		// Bilinear matches the scaler used by Jivefire thumbnail generation.
-		// draw.Src writes the resized pixels straight into the fresh
-		// destination, the cheaper choice for a full-frame resize.
-		draw.BiLinear.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)
+		// Cover art uses CatmullRom, not the bilinear scaler of Jivefire
+		// thumbnails: cover art is not a thumbnail and downscales well beyond
+		// 2x (3000 from 5000 or 10000 px), where bilinear undersamples and
+		// softens. CatmullRom stays sharper at negligible cost for a
+		// once-per-encode resize. draw.Src writes the resized pixels straight
+		// into the fresh destination, the cheaper choice for a full-frame resize.
+		draw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Src, nil)
 
 		src = dst
 	}
 
 	// Normalise every re-encoded path to PNG for a consistent attached-picture payload.
+	// Known limitation: re-encoding does not preserve EXIF orientation (Go's
+	// image/jpeg ignores it) or ICC colour profiles (dropped on decode). Podcast
+	// cover art is expected to be square sRGB PNG with no orientation metadata,
+	// so this trade-off does not affect the intended inputs.
 	var buf bytes.Buffer
 
 	err = png.Encode(&buf, src)
