@@ -126,6 +126,8 @@ Flags:
 
 Where `{ext}` is `.mp3`, `.m4a`, or `.opus` depending on `--format`.
 
+If `--output-path` names a file, its extension must match `--format`.
+
 ### Encoding settings
 
 | Format | Mono | Stereo | Sample rate | Notes |
