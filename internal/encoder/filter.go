@@ -61,6 +61,11 @@ func (e *Encoder) initFilter() error {
 
 	outputs := ffmpeg.AVFilterInoutAlloc()
 	inputs := ffmpeg.AVFilterInoutAlloc()
+	if outputs == nil || inputs == nil {
+		ffmpeg.AVFilterInoutFree(&outputs)
+		ffmpeg.AVFilterInoutFree(&inputs)
+		return fmt.Errorf("failed to allocate filter endpoints")
+	}
 	defer ffmpeg.AVFilterInoutFree(&outputs)
 	defer ffmpeg.AVFilterInoutFree(&inputs)
 
