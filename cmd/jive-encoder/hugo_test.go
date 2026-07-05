@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -156,17 +158,19 @@ func TestHugoWorkflowValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Construct the workflow with the test inputs threaded through
-			// CLIOptions. A dummy audio file keeps file-existence checks from
-			// masking the argument validation errors we are testing for.
+			episodeMD := tt.episodeMD
+			if !tt.wantErr {
+				episodeMD = existingMarkdownArgument(t, tt.episodeMD)
+			}
+
 			wf := &HugoWorkflow{opts: CLIOptions{
-				EpisodeMD: tt.episodeMD,
+				EpisodeMD: episodeMD,
 			}}
 			err := wf.Validate()
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("HugoWorkflow.Validate() expected error, got nil (EpisodeMD=%q)", tt.episodeMD)
+					t.Errorf("HugoWorkflow.Validate() expected error, got nil (EpisodeMD=%q)", episodeMD)
 					return
 				}
 				if tt.errMatch != "" && !strings.Contains(err.Error(), tt.errMatch) {
@@ -175,10 +179,8 @@ func TestHugoWorkflowValidate(t *testing.T) {
 				return
 			}
 
-			// For valid cases we only check argument validation, not file existence.
-			// File-not-found errors are acceptable here since the files do not exist on disk.
-			if err != nil && !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "not accessible") {
-				t.Errorf("HugoWorkflow.Validate() unexpected error: %v (EpisodeMD=%q)", err, tt.episodeMD)
+			if err != nil {
+				t.Errorf("HugoWorkflow.Validate() unexpected error: %v (EpisodeMD=%q)", err, episodeMD)
 			}
 		})
 	}
@@ -238,22 +240,53 @@ func TestHugoWorkflowValidate_Integration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Construct the workflow with the test inputs threaded through
-			// CLIOptions. A dummy audio file keeps file-existence checks from
-			// masking the argument validation errors we are testing for.
+			episodeMD := tt.episodeMD
+			if !tt.wantErr {
+				episodeMD = existingMarkdownArgument(t, tt.episodeMD)
+			}
+
 			wf := &HugoWorkflow{opts: CLIOptions{
-				EpisodeMD: tt.episodeMD,
+				EpisodeMD: episodeMD,
 			}}
 			err := wf.Validate()
 
 			if tt.wantErr && err == nil {
 				t.Errorf("HugoWorkflow.Validate() expected error but got nil\n  Description: %s\n  EpisodeMD=%q",
-					tt.description, tt.episodeMD)
+					tt.description, episodeMD)
 			}
-			if !tt.wantErr && err != nil && !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "not accessible") {
+			if !tt.wantErr && err != nil {
 				t.Errorf("HugoWorkflow.Validate() unexpected error: %v\n  Description: %s\n  EpisodeMD=%q",
-					err, tt.description, tt.episodeMD)
+					err, tt.description, episodeMD)
 			}
 		})
 	}
+}
+
+func existingMarkdownArgument(t *testing.T, path string) string {
+	t.Helper()
+
+	root := t.TempDir()
+	workDir := filepath.Join(root, "work")
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("create test work dir: %v", err)
+	}
+	t.Chdir(workDir)
+
+	arg := path
+	if filepath.IsAbs(path) {
+		arg = filepath.Join(root, strings.TrimPrefix(path, string(filepath.Separator)))
+	}
+
+	target := arg
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(workDir, target)
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatalf("create markdown fixture dir: %v", err)
+	}
+	if err := os.WriteFile(target, []byte("---\n---\n"), 0o644); err != nil {
+		t.Fatalf("create markdown fixture: %v", err)
+	}
+
+	return arg
 }
