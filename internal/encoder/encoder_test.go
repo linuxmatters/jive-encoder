@@ -420,9 +420,9 @@ func TestEncodeCoverArt_Integration(t *testing.T) {
 		t.Skip("ffprobe not available")
 	}
 
-	coverPath := "../../testdata/linuxmatters-alt.png"
+	coverPath := "../../testdata/linuxmatters-3000x3000.png"
 	if _, err := os.Stat(coverPath); os.IsNotExist(err) {
-		t.Skipf("Cover fixture not found: %s", coverPath)
+		t.Fatalf("Cover fixture not found: %s", coverPath)
 	}
 	cover, err := artwork.ScaleCoverArt(coverPath)
 	if err != nil {

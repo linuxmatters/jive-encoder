@@ -701,6 +701,63 @@ Episode content.
 	}
 }
 
+func TestUpdateFrontmatter_DoesNotRewriteNestedOrLiteralMatches(t *testing.T) {
+	content := `---
+episode: "42"
+title: "Test Episode"
+notes: |
+  Keep this sample text:
+  podcast_duration: "sample duration"
+  podcast_bytes: 123
+details:
+  podcast_duration: "nested duration"
+  podcast_bytes: 456
+Date: 2025-11-09T00:00:00Z
+episode_image: "/img/test.png"
+podcast_duration: "00:05:00"
+podcast_bytes: 1000000
+---
+
+Episode content.
+`
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "test.md")
+	if err := os.WriteFile(tmpFile, []byte(content), 0o644); err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	err := UpdateFrontmatter(tmpFile, "00:30:00", 9999999)
+	if err != nil {
+		t.Fatalf("UpdateFrontmatter failed: %v", err)
+	}
+
+	updated, err := os.ReadFile(tmpFile)
+	if err != nil {
+		t.Fatalf("Failed to read updated file: %v", err)
+	}
+
+	updatedContent := string(updated)
+	if !strings.Contains(updatedContent, `podcast_duration: "00:30:00"`) {
+		t.Error("top-level podcast_duration not updated")
+	}
+	if !strings.Contains(updatedContent, "podcast_bytes: 9999999") {
+		t.Error("top-level podcast_bytes not updated")
+	}
+	if !strings.Contains(updatedContent, `podcast_duration: "sample duration"`) {
+		t.Error("literal podcast_duration text was rewritten")
+	}
+	if !strings.Contains(updatedContent, "podcast_bytes: 123") {
+		t.Error("literal podcast_bytes text was rewritten")
+	}
+	if !strings.Contains(updatedContent, `podcast_duration: "nested duration"`) {
+		t.Error("nested podcast_duration was rewritten")
+	}
+	if !strings.Contains(updatedContent, "podcast_bytes: 456") {
+		t.Error("nested podcast_bytes was rewritten")
+	}
+}
+
 func TestResolveCoverArtPath_RelativePath(t *testing.T) {
 	// Create a temporary directory structure:
 	// tmpDir/episode.md

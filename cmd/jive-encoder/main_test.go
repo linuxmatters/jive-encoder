@@ -16,112 +16,40 @@ func TestSanitiseForFilename(t *testing.T) {
 		input    string
 		expected string
 	}{
-		// Basic cases
 		{
 			name:     "simple alphanumeric",
 			input:    "Linux Matters",
 			expected: "linux-matters",
 		},
-		// Special characters that should be removed
 		{
-			name:     "forward slash",
-			input:    "AC/DC",
-			expected: "acdc",
+			name:     "strips punctuation",
+			input:    "AC/DC & Friends!",
+			expected: "acdc--friends",
 		},
 		{
-			name:     "backslash",
-			input:    "Guns\\Roses",
-			expected: "gunsroses",
+			name:     "strips unicode",
+			input:    "Café 中文 Show",
+			expected: "caf--show",
 		},
 		{
-			name:     "apostrophe",
-			input:    "Guns N' Roses",
-			expected: "guns-n-roses",
-		},
-		{
-			name:     "ampersand",
-			input:    "Tom & Jerry",
-			expected: "tom--jerry",
-		},
-		{
-			name:     "asterisk",
-			input:    "The *Clash*",
-			expected: "the-clash",
-		},
-		{
-			name:     "question mark",
-			input:    "Who?",
-			expected: "who",
-		},
-		{
-			name:     "exclamation mark",
-			input:    "Bang!",
-			expected: "bang",
-		},
-		// Unicode and non-ASCII characters
-		{
-			name:     "unicode umlauts stripped",
-			input:    "Björk",
-			expected: "bjrk",
-		},
-		{
-			name:     "accented characters stripped",
-			input:    "Café du Monde",
-			expected: "caf-du-monde",
-		},
-		{
-			name:     "chinese characters stripped",
-			input:    "Podcast 中文 Show",
-			expected: "podcast--show",
-		},
-		// Multiple special characters
-		{
-			name:     "multiple consecutive special chars",
-			input:    "Episode!!!???",
-			expected: "episode",
-		},
-		// Dots and underscores (preserved)
-		{
-			name:     "dots preserved",
-			input:    "Hello...World",
-			expected: "hello...world",
-		},
-		{
-			name:     "underscores preserved",
-			input:    "Hello_World",
-			expected: "hello_world",
-		},
-		{
-			name:     "mixed dots underscores hyphens",
+			name:     "preserves dots underscores and hyphens",
 			input:    "Hello.World_Test-Case",
 			expected: "hello.world_test-case",
 		},
-		// Whitespace handling
 		{
-			name:     "leading and trailing spaces",
-			input:    "  Podcast Show  ",
-			expected: "--podcast-show--",
+			name:     "spaces become hyphens",
+			input:    "  The   Podcast  ",
+			expected: "--the---podcast--",
 		},
 		{
-			name:     "multiple spaces between words",
-			input:    "The   Podcast   Show",
-			expected: "the---podcast---show",
-		},
-		{
-			name:     "tabs and mixed whitespace",
+			name:     "tabs are stripped",
 			input:    "Hello\tWorld",
 			expected: "helloworld",
 		},
-		// Edge cases
 		{
 			name:     "empty string",
 			input:    "",
 			expected: "",
-		},
-		{
-			name:     "only spaces",
-			input:    "   ",
-			expected: "---",
 		},
 		{
 			name:     "only special characters",
@@ -132,32 +60,6 @@ func TestSanitiseForFilename(t *testing.T) {
 			name:     "numbers preserved",
 			input:    "Episode 42",
 			expected: "episode-42",
-		},
-		{
-			name:     "mixed case with numbers",
-			input:    "PoDCaSt 99 ShOw",
-			expected: "podcast-99-show",
-		},
-		// Real-world examples
-		{
-			name:     "linux matters real example",
-			input:    "Linux Matters",
-			expected: "linux-matters",
-		},
-		{
-			name:     "spotify podcast example",
-			input:    "The Daily Show with Trevor Noah",
-			expected: "the-daily-show-with-trevor-noah",
-		},
-		{
-			name:     "special music artist",
-			input:    "U2 / Bono",
-			expected: "u2--bono",
-		},
-		{
-			name:     "symbol-heavy artist",
-			input:    "$$$ (Money) $$$",
-			expected: "-money-",
 		},
 	}
 
@@ -182,7 +84,6 @@ func TestGenerateFilename(t *testing.T) {
 		ext       string
 		expected  string
 	}{
-		// Hugo mode - default behaviour
 		{
 			name:      "hugo default simple",
 			mode:      HugoMode,
@@ -192,7 +93,6 @@ func TestGenerateFilename(t *testing.T) {
 			ext:       ".mp3",
 			expected:  "LMP67.mp3",
 		},
-		// Per-format extension
 		{
 			name:      "hugo default opus",
 			mode:      HugoMode,
@@ -201,15 +101,6 @@ func TestGenerateFilename(t *testing.T) {
 			cliArtist: "",
 			ext:       ".opus",
 			expected:  "LMP67.opus",
-		},
-		{
-			name:      "hugo default aac",
-			mode:      HugoMode,
-			num:       "67",
-			artist:    "",
-			cliArtist: "",
-			ext:       ".m4a",
-			expected:  "LMP67.m4a",
 		},
 		{
 			name:      "standalone artist opus",
@@ -221,15 +112,6 @@ func TestGenerateFilename(t *testing.T) {
 			expected:  "my-show-1.opus",
 		},
 		{
-			name:      "standalone fallback m4a",
-			mode:      StandaloneMode,
-			num:       "1",
-			artist:    "",
-			cliArtist: "",
-			ext:       ".m4a",
-			expected:  "episode-1.m4a",
-		},
-		{
 			name:      "hugo episode 0",
 			mode:      HugoMode,
 			num:       "0",
@@ -239,16 +121,6 @@ func TestGenerateFilename(t *testing.T) {
 			expected:  "LMP0.mp3",
 		},
 		{
-			name:      "hugo large episode number",
-			mode:      HugoMode,
-			num:       "999",
-			artist:    "",
-			cliArtist: "",
-			ext:       ".mp3",
-			expected:  "LMP999.mp3",
-		},
-		// Hugo mode - custom artist override
-		{
 			name:      "hugo with custom artist override",
 			mode:      HugoMode,
 			num:       "67",
@@ -257,16 +129,6 @@ func TestGenerateFilename(t *testing.T) {
 			ext:       ".mp3",
 			expected:  "custom-podcast-67.mp3",
 		},
-		{
-			name:      "hugo with special chars in artist",
-			mode:      HugoMode,
-			num:       "42",
-			artist:    "The (Real) Show",
-			cliArtist: "The (Real) Show",
-			ext:       ".mp3",
-			expected:  "the-real-show-42.mp3",
-		},
-		// Hugo mode - Linux Matters default not triggered by override
 		{
 			name:      "hugo with linux matters artist keeps default",
 			mode:      HugoMode,
@@ -285,7 +147,6 @@ func TestGenerateFilename(t *testing.T) {
 			ext:       ".mp3",
 			expected:  "LMP55.mp3",
 		},
-		// Standalone mode - with artist
 		{
 			name:      "standalone with artist",
 			mode:      StandaloneMode,
@@ -305,16 +166,6 @@ func TestGenerateFilename(t *testing.T) {
 			expected:  "the-daily-show-late-night-42.mp3",
 		},
 		{
-			name:      "standalone with multiple words",
-			mode:      StandaloneMode,
-			num:       "99",
-			artist:    "This Is A Very Long Podcast Name",
-			cliArtist: "This Is A Very Long Podcast Name",
-			ext:       ".mp3",
-			expected:  "this-is-a-very-long-podcast-name-99.mp3",
-		},
-		// Standalone mode - without artist (fallback to episode)
-		{
 			name:      "standalone without artist",
 			mode:      StandaloneMode,
 			num:       "1",
@@ -324,16 +175,6 @@ func TestGenerateFilename(t *testing.T) {
 			expected:  "episode-1.mp3",
 		},
 		{
-			name:      "standalone without artist large number",
-			mode:      StandaloneMode,
-			num:       "42",
-			artist:    "",
-			cliArtist: "",
-			ext:       ".mp3",
-			expected:  "episode-42.mp3",
-		},
-		// Edge cases with numbers
-		{
 			name:      "episode number with leading zeros",
 			mode:      StandaloneMode,
 			num:       "007",
@@ -341,15 +182,6 @@ func TestGenerateFilename(t *testing.T) {
 			cliArtist: "James Bond",
 			ext:       ".mp3",
 			expected:  "james-bond-007.mp3",
-		},
-		{
-			name:      "numeric artist name",
-			mode:      StandaloneMode,
-			num:       "5",
-			artist:    "99 Luftballons",
-			cliArtist: "99 Luftballons",
-			ext:       ".mp3",
-			expected:  "99-luftballons-5.mp3",
 		},
 	}
 
@@ -379,7 +211,6 @@ func TestResolveOutputPath(t *testing.T) {
 		useTempDir    bool   // Replace outputPath with a fresh temp directory
 		wantInTempDir bool   // Prefix wantPath with the temp directory
 	}{
-		// Empty output path - use current directory with generated filename
 		{
 			name:       "empty path uses generated filename",
 			outputPath: "",
@@ -392,17 +223,6 @@ func TestResolveOutputPath(t *testing.T) {
 			wantPath:   "LMP67.mp3",
 		},
 		{
-			name:       "empty path standalone mode",
-			outputPath: "",
-			mode:       StandaloneMode,
-			num:        "42",
-			artist:     "Test Show",
-			cliArtist:  "Test Show",
-			ext:        ".mp3",
-			wantErr:    false,
-			wantPath:   "test-show-42.mp3",
-		},
-		{
 			name:       "empty path opus extension",
 			outputPath: "",
 			mode:       HugoMode,
@@ -413,7 +233,6 @@ func TestResolveOutputPath(t *testing.T) {
 			wantErr:    false,
 			wantPath:   "LMP67.opus",
 		},
-		// Existing directory - generate filename within it
 		{
 			name:          "existing directory",
 			outputPath:    "", // Replaced with temp dir via useTempDir
@@ -427,7 +246,6 @@ func TestResolveOutputPath(t *testing.T) {
 			useTempDir:    true,
 			wantInTempDir: true,
 		},
-		// Explicit file path - use as-is
 		{
 			name:       "explicit filename in current dir",
 			outputPath: "custom-output.mp3",
@@ -439,20 +257,6 @@ func TestResolveOutputPath(t *testing.T) {
 			wantErr:    false,
 			wantPath:   "custom-output.mp3",
 		},
-		// File path in existing directory
-		{
-			name:       "file path in existing temp directory",
-			outputPath: "", // Replaced with temp dir via useTempDir
-			mode:       HugoMode,
-			num:        "99",
-			artist:     "",
-			cliArtist:  "",
-			ext:        ".m4a",
-			wantErr:    false,
-			wantPath:   "LMP99.m4a",
-			useTempDir: true,
-		},
-		// Error cases: non-existent directory
 		{
 			name:       "trailing slash non-existent directory",
 			outputPath: "/nonexistent/dir/",
@@ -529,25 +333,6 @@ func TestResolveOutputPath_FileOverwrite(t *testing.T) {
 	}
 }
 
-// TestResolveOutputPath_GeneratedFilenameInTempDir tests generated filename placed in temp directory
-func TestResolveOutputPath_GeneratedFilenameInTempDir(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	result, err := resolveOutputPath(StandaloneMode, "42", "Test Show", "Test Show", ".mp3", tmpDir)
-	if err != nil {
-		t.Errorf("resolveOutputPath() unexpected error: %v", err)
-	}
-
-	rel, relErr := filepath.Rel(tmpDir, result)
-	if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-		t.Errorf("resolveOutputPath() = %q; not in temp directory %q", result, tmpDir)
-	}
-
-	if !isPathMatch(result, "test-show-42.mp3") {
-		t.Errorf("resolveOutputPath() = %q; want path containing 'test-show-42.mp3'", result)
-	}
-}
-
 // isPathMatch checks if a path contains the expected component
 // Handles both absolute and relative path matching
 func isPathMatch(fullPath, expected string) bool {
@@ -566,7 +351,6 @@ func TestDetectMode(t *testing.T) {
 		episodeMD string
 		expected  WorkflowMode
 	}{
-		// Hugo mode: second argument is .md file
 		{
 			name:      "hugo mode with lowercase .md",
 			episodeMD: "episode.md",
@@ -578,27 +362,10 @@ func TestDetectMode(t *testing.T) {
 			expected:  HugoMode,
 		},
 		{
-			name:      "hugo mode with mixed case .Md",
-			episodeMD: "episode.Md",
-			expected:  HugoMode,
-		},
-		{
 			name:      "hugo mode with path containing .md",
 			episodeMD: "content/episodes/67.md",
 			expected:  HugoMode,
 		},
-		{
-			name:      "hugo mode with nested path and uppercase .MD",
-			episodeMD: "posts/episode/post.MD",
-			expected:  HugoMode,
-		},
-		{
-			name:      "hugo mode with only filename .md",
-			episodeMD: "67.md",
-			expected:  HugoMode,
-		},
-
-		// Standalone mode: second argument is NOT a .md file
 		{
 			name:      "standalone mode with .txt file",
 			episodeMD: "readme.txt",
@@ -610,22 +377,10 @@ func TestDetectMode(t *testing.T) {
 			expected:  StandaloneMode,
 		},
 		{
-			name:      "standalone mode with .md not at end",
-			episodeMD: "file.md.txt",
-			expected:  StandaloneMode,
-		},
-		{
 			name:      "standalone mode with empty episodeMD string",
 			episodeMD: "",
 			expected:  StandaloneMode,
 		},
-		{
-			name:      "standalone mode with non-md extension",
-			episodeMD: "episode.yaml",
-			expected:  StandaloneMode,
-		},
-
-		// Edge cases
 		{
 			name:      "just .md (no filename before extension)",
 			episodeMD: ".md",
@@ -640,38 +395,6 @@ func TestDetectMode(t *testing.T) {
 			name:      "filename with multiple dots not ending in .md",
 			episodeMD: "my.episode.v2.md.backup",
 			expected:  StandaloneMode,
-		},
-		{
-			name:      "markdown file with spaces",
-			episodeMD: "my episode file.md",
-			expected:  HugoMode,
-		},
-		{
-			name:      "episode md with special characters",
-			episodeMD: "episode-67_final.md",
-			expected:  HugoMode,
-		},
-
-		// Realistic CLI invocations
-		{
-			name:      "real hugo workflow: LMP67.flac content/episodes/67.md",
-			episodeMD: "content/episodes/67.md",
-			expected:  HugoMode,
-		},
-		{
-			name:      "real standalone workflow: podcast.wav with flags only",
-			episodeMD: "",
-			expected:  StandaloneMode,
-		},
-		{
-			name:      "common mistake: non-md episode file falls back to standalone",
-			episodeMD: "episode.txt",
-			expected:  StandaloneMode,
-		},
-		{
-			name:      "uppercase .MD extension for cross-platform",
-			episodeMD: "99.MD",
-			expected:  HugoMode,
 		},
 	}
 

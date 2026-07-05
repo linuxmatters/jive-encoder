@@ -1,6 +1,7 @@
 package encoder
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -228,7 +229,7 @@ func FormatDateForID3(t time.Time) string {
 }
 
 // UpdateFrontmatter updates podcast_duration and podcast_bytes in the markdown file
-func UpdateFrontmatter(markdownPath, duration string, bytes int64) error {
+func UpdateFrontmatter(markdownPath, duration string, byteCount int64) error {
 	content, err := os.ReadFile(markdownPath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)
@@ -241,38 +242,14 @@ func UpdateFrontmatter(markdownPath, duration string, bytes int64) error {
 		return fmt.Errorf("invalid frontmatter format: %w", err)
 	}
 
-	// Rewrite existing keys in place, tracking which were present.
-	updated := false
-	bytesUpdated := false
-
-	for i := start; i < end; i++ {
-		line := lines[i]
-
-		if strings.HasPrefix(strings.TrimSpace(line), "podcast_duration:") {
-			// Quote the duration: unquoted HH:MM:SS parses as a sexagesimal
-			// number under YAML 1.1.
-			lines[i] = fmt.Sprintf("podcast_duration: %q", duration)
-			updated = true
-		}
-
-		if strings.HasPrefix(strings.TrimSpace(line), "podcast_bytes:") {
-			lines[i] = fmt.Sprintf("podcast_bytes: %d", bytes)
-			bytesUpdated = true
-		}
+	frontmatter := strings.Join(lines[start:end], "\n")
+	updatedFrontmatter, err := updateFrontmatterYAML(frontmatter, duration, byteCount)
+	if err != nil {
+		return err
 	}
 
-	// Insert any missing keys just before the closing delimiter.
-	if !updated || !bytesUpdated {
-		var insertLines []string
-		if !updated {
-			insertLines = append(insertLines, fmt.Sprintf("podcast_duration: %q", duration))
-		}
-		if !bytesUpdated {
-			insertLines = append(insertLines, fmt.Sprintf("podcast_bytes: %d", bytes))
-		}
-
-		lines = slices.Insert(lines, end, insertLines...)
-	}
+	updatedLines := strings.Split(strings.TrimSuffix(updatedFrontmatter, "\n"), "\n")
+	lines = slices.Replace(lines, start, end, updatedLines...)
 
 	output := strings.Join(lines, "\n")
 	if err := os.WriteFile(markdownPath, []byte(output), 0o644); err != nil { //nolint:gosec // markdownPath is user-provided input path, not tainted
@@ -280,4 +257,74 @@ func UpdateFrontmatter(markdownPath, duration string, bytes int64) error {
 	}
 
 	return nil
+}
+
+func updateFrontmatterYAML(frontmatter, duration string, byteCount int64) (string, error) {
+	var document yaml.Node
+	if strings.TrimSpace(frontmatter) == "" {
+		document.Content = []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}
+	} else if err := yaml.Unmarshal([]byte(frontmatter), &document); err != nil {
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	if len(document.Content) == 0 {
+		document.Content = []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}
+	}
+
+	mapping := document.Content[0]
+	if mapping.Kind != yaml.MappingNode {
+		return "", fmt.Errorf("invalid frontmatter: expected YAML mapping")
+	}
+
+	if !updateScalarField(mapping, "podcast_duration", duration, yaml.DoubleQuotedStyle, "!!str") {
+		appendScalarField(mapping, "podcast_duration", duration, yaml.DoubleQuotedStyle, "!!str")
+	}
+	byteValue := strconv.FormatInt(byteCount, 10)
+	if !updateScalarField(mapping, "podcast_bytes", byteValue, 0, "!!int") {
+		appendScalarField(mapping, "podcast_bytes", byteValue, 0, "!!int")
+	}
+
+	var output bytes.Buffer
+	encoder := yaml.NewEncoder(&output)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(mapping); err != nil {
+		return "", fmt.Errorf("failed to encode frontmatter: %w", err)
+	}
+	if err := encoder.Close(); err != nil {
+		return "", fmt.Errorf("failed to encode frontmatter: %w", err)
+	}
+
+	return output.String(), nil
+}
+
+func updateScalarField(mapping *yaml.Node, key, value string, style yaml.Style, tag string) bool {
+	updated := false
+	for i := 0; i+1 < len(mapping.Content); i += 2 {
+		keyNode := mapping.Content[i]
+		if keyNode.Kind != yaml.ScalarNode || keyNode.Value != key {
+			continue
+		}
+
+		setScalarNode(mapping.Content[i+1], value, style, tag)
+		updated = true
+	}
+
+	return updated
+}
+
+func appendScalarField(mapping *yaml.Node, key, value string, style yaml.Style, tag string) {
+	mapping.Content = append(mapping.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: value, Style: style},
+	)
+}
+
+func setScalarNode(node *yaml.Node, value string, style yaml.Style, tag string) {
+	node.Kind = yaml.ScalarNode
+	node.Tag = tag
+	node.Value = value
+	node.Style = style
+	node.Content = nil
+	node.Anchor = ""
+	node.Alias = nil
 }
