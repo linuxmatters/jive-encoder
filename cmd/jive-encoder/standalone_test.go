@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -184,11 +186,12 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 
 		// Cover art path variations
 		{
-			name:    "cover as url",
-			title:   "Episode",
-			num:     "1",
-			cover:   "https://example.com/cover.png",
-			wantErr: false,
+			name:     "cover as url",
+			title:    "Episode",
+			num:      "1",
+			cover:    "https://example.com/cover.png",
+			wantErr:  true,
+			errMatch: "cover art not accessible",
 		},
 		{
 			name:    "cover as relative path",
@@ -215,20 +218,22 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Construct the workflow with the test inputs threaded through
-			// CLIOptions. A dummy audio file keeps file-existence checks from
-			// masking the argument validation errors we are testing for.
+			cover := tt.cover
+			if !tt.wantErr {
+				cover = existingCoverArgument(t, tt.cover)
+			}
+
 			wf := &StandaloneWorkflow{opts: CLIOptions{
 				Title: tt.title,
 				Num:   tt.num,
-				Cover: tt.cover,
+				Cover: cover,
 			}}
 			err := wf.Validate()
 
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("StandaloneWorkflow.Validate() expected error, got nil\n  Title=%q, Num=%q, Cover=%q",
-						tt.title, tt.num, tt.cover)
+						tt.title, tt.num, cover)
 					return
 				}
 				if tt.errMatch != "" && !strings.Contains(err.Error(), tt.errMatch) {
@@ -237,11 +242,9 @@ func TestStandaloneWorkflowValidate(t *testing.T) {
 				return
 			}
 
-			// For valid cases we only check argument validation, not file existence.
-			// File-not-found errors are acceptable here since the cover files do not exist on disk.
-			if err != nil && !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "not accessible") {
+			if err != nil {
 				t.Errorf("StandaloneWorkflow.Validate() unexpected error: %v\n  Title=%q, Num=%q, Cover=%q",
-					err, tt.title, tt.num, tt.cover)
+					err, tt.title, tt.num, cover)
 			}
 		})
 	}
@@ -325,24 +328,55 @@ func TestStandaloneWorkflowValidate_Integration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Construct the workflow with the test inputs threaded through
-			// CLIOptions. A dummy audio file keeps file-existence checks from
-			// masking the argument validation errors we are testing for.
+			cover := tt.cover
+			if !tt.wantErr {
+				cover = existingCoverArgument(t, tt.cover)
+			}
+
 			wf := &StandaloneWorkflow{opts: CLIOptions{
 				Title: tt.title,
 				Num:   tt.num,
-				Cover: tt.cover,
+				Cover: cover,
 			}}
 			err := wf.Validate()
 
 			if tt.wantErr && err == nil {
 				t.Errorf("StandaloneWorkflow.Validate() expected error but got nil\n  Description: %s\n  Title=%q, Num=%q, Cover=%q",
-					tt.description, tt.title, tt.num, tt.cover)
+					tt.description, tt.title, tt.num, cover)
 			}
-			if !tt.wantErr && err != nil && !strings.Contains(err.Error(), "not found") && !strings.Contains(err.Error(), "not accessible") {
+			if !tt.wantErr && err != nil {
 				t.Errorf("StandaloneWorkflow.Validate() unexpected error: %v\n  Description: %s\n  Title=%q, Num=%q, Cover=%q",
-					err, tt.description, tt.title, tt.num, tt.cover)
+					err, tt.description, tt.title, tt.num, cover)
 			}
 		})
 	}
+}
+
+func existingCoverArgument(t *testing.T, path string) string {
+	t.Helper()
+
+	root := t.TempDir()
+	workDir := filepath.Join(root, "work")
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("create test work dir: %v", err)
+	}
+	t.Chdir(workDir)
+
+	arg := path
+	if filepath.IsAbs(path) {
+		arg = filepath.Join(root, strings.TrimPrefix(path, string(filepath.Separator)))
+	}
+
+	target := arg
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(workDir, target)
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatalf("create cover fixture dir: %v", err)
+	}
+	if err := os.WriteFile(target, []byte("cover"), 0o644); err != nil {
+		t.Fatalf("create cover fixture: %v", err)
+	}
+
+	return arg
 }
