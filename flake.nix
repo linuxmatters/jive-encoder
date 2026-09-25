@@ -16,10 +16,14 @@
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = import nixpkgs { inherit system; };
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ (final: prev: { go = prev.go_1_26; }) ];
+        };
       in
       {
         devShells.default = pkgs.mkShell {
+          shellHook = import ./nix/hooks.nix { inherit pkgs; };
           packages = with pkgs; [
             actionlint
             cosign
@@ -34,7 +38,7 @@
             just
             lame
             mediainfo
-          ];
+          ] ++ import ./nix/loader.nix { inherit pkgs; };
         };
       }
     );

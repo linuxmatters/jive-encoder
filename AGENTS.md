@@ -2,11 +2,12 @@
 
 ## Setup Commands
 
-**Required first step:**
+**Explicit setup when prerequisites are missing:**
 ```bash
 just setup
 ```
-Initialises the `ffmpeg-statigo` submodule and downloads platform-specific FFmpeg static libraries.
+The managed consumer setup initialises or updates `ffmpeg-statigo` and downloads platform-specific FFmpeg static libraries.
+Run setup only with approval. It can change Git configuration, submodules, archives, and the index.
 
 **Development environment:**
 ```bash
@@ -17,10 +18,19 @@ nix develop  # Enter NixOS development shell (ffmpeg, lame, mediainfo, just, go)
 
 ```bash
 just build      # Build binary with version from git tags (CGO_ENABLED=1)
-just test       # Run all Go tests
+just test       # Run full vet and all Go tests with console coverage
+just lint       # Read-only workflow, source, and vulnerability checks
+just lint correct # Tidy modules and format source, then check
 just test-encoder  # Integration test: encode testdata/LMP67.flac
 just clean      # Remove build artifacts and test outputs (*.mp3/*.m4a/*.opus)
 ```
+
+Use `just build`, `just test`, and `just lint` for quality work.
+The managed build runs before `just/project/build.sh`, which preserves version injection and the root binary.
+Keep audio-format validation explicit through `just test-encoder`.
+Preserve the root release recipe and its unprefixed tags.
+Keep `.golangci.yml` as a customised first-fit file.
+Review new Nix files before normal staging and manual environment reload. Do not change direnv trust automatically.
 
 ## Architecture
 

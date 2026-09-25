@@ -167,9 +167,28 @@ just setup
 
 # Build and test
 just build        # Build binary
-just test         # Run tests
-just test-encoder # Test encoder
+just test         # Run full vet and tests with console coverage
+just lint         # Check workflows, Go source, and vulnerabilities
+just lint correct # Tidy modules and format source, then check
+just test-encoder # Run the explicit audio-format integration check
 ```
+
+### Tailor integration
+
+Use `just build`, `just test`, and `just lint` for quality checks.
+`just build` first builds the managed `bin/` output, then runs `just/project/build.sh` for the versioned root `jive-encoder` binary.
+`just lint` is read-only. Use `just lint correct` explicitly to tidy modules and format source.
+The project lint script retains `ineffassign`. Full vet runs in `just test`.
+`just test-encoder` remains an explicit audio-format check and does not run through the managed commands.
+
+The Nix shell imports the managed packages and hooks with the same `pkgs`, with Go pinned to `go_1_26` and `CGO_ENABLED=1`.
+All existing packages remain. Pages and MCP declarations remain absent.
+The root release recipe retains unprefixed tags and the existing release workflow.
+`just setup` uses the equivalent managed consumer setup. Run it only explicitly: it changes Git configuration, submodules, archives, and the index.
+
+Review and add the managed files to Git before using the shell, because Git flakes omit untracked files.
+The `.envrc` retains manual reload and watches the managed Nix files.
+Review the environment changes before normal direnv approval and manual reload.
 
 ## Why Jive Encoder?
 

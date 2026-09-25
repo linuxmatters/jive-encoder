@@ -1,6 +1,12 @@
 # Initially fitted by tailor on 2026-03-16
 license: GPL-3.0
 
+languages:
+  go:
+    enabled: true
+    cgo: true
+    ffmpeg-statigo: true
+
 repository:
   description: Drop your podcast .wav into a shiny MP3, AAC or Opus with metadata, cover art, and all 🗜️
   homepage: https://linuxmatters.sh
@@ -82,9 +88,6 @@ labels:
     description: Hacktoberfest contribution
 
 swatches:
-  - path: .github/workflows/tailor.yml
-    alteration: never
-
   - path: .github/dependabot.yml
     alteration: first-fit
 
@@ -115,6 +118,18 @@ swatches:
   - path: SUPPORT.md
     alteration: always
 
+  - path: .golangci.yml
+    alteration: first-fit
+
+  - path: .goreleaser.yaml
+    alteration: never
+
+  - path: .github/workflows/build-go.yml
+    alteration: never
+
+  - path: Dockerfile
+    alteration: never
+
   - path: justfile
     alteration: first-fit
 
@@ -132,6 +147,3 @@ swatches:
 
   - path: .tailor.yml
     alteration: always
-
-  - path: .github/workflows/tailor-automerge.yml
-    alteration: never
