@@ -8,3 +8,6 @@ testdata/*
 *.opus
 *.m4a
 coverage.out
+/artifacts/
+/dist/
+/result
