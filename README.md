@@ -4,6 +4,8 @@
 
 > Drop your podcast .wav into a shiny MP3, AAC, or Opus with metadata, cover art, and all
 
+Website: [linuxmatters.sh/jive/encoder](https://linuxmatters.sh/jive/encoder/)
+
 ## The Groove
 
 Jive Encoder takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready podcast files with optimised encoding, embedded artwork, and complete metadata. Choose MP3 for universal compatibility, AAC for Apple-recommended quality, or Opus for modern Android and web delivery. One command, distribution-ready output.
@@ -30,6 +32,28 @@ Jive Encoder takes your mixed podcast audio (WAV/FLAC) and outputs RSS-ready pod
 - 🚀 **Single binary** Just drop and encode
   - 🐧 **Linux** (amd64 and aarch64)
   - 🍏 **macOS** (x86 and Apple Silicon)
+
+## Install
+
+| | Platform | Repository |
+| :-: | --- | --- |
+| <img src="https://apt.wimpys.world/logo.svg" width="32" height="32" alt=""> | Debian and Ubuntu | [apt.wimpys.world](https://apt.wimpys.world/#jive-encoder) |
+| <img src="https://rpm.wimpys.world/logo.svg" width="32" height="32" alt=""> | Fedora and openSUSE | [rpm.wimpys.world](https://rpm.wimpys.world/#jive-encoder) |
+| <img src="https://pkg.wimpys.world/logo.svg" width="32" height="32" alt=""> | Arch Linux | [pkg.wimpys.world](https://pkg.wimpys.world/#jive-encoder) |
+| <img src="https://brew.wimpys.world/logo.svg" width="32" height="32" alt=""> | macOS (Homebrew) | [brew.wimpys.world](https://brew.wimpys.world/#jive-encoder) |
+| <img src="https://nix.wimpys.world/logo.svg" width="32" height="32" alt=""> | Nix and NixOS | [nix.wimpys.world](https://nix.wimpys.world/#jive-encoder) |
+
+Each repository is signed, and its page gives the setup steps and keeps Jive Encoder up to date.
+
+The Linux packages and binaries need glibc 2.38 or later, for example Ubuntu 24.04, Debian 13, or Fedora 39.
+
+### Linux and macOS
+
+[bin](https://github.com/marcosnils/bin) installs and updates the release binary:
+
+```shell
+bin install github.com/linuxmatters/jive-encoder
+```
 
 ## Usage
 
