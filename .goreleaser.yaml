@@ -78,9 +78,7 @@ nfpms:
           - gcc-libs
 
 checksum:
-  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
-  extra_files:
-    - glob: ./artifacts/*
+  disable: true
 
 changelog:
   sort: asc
