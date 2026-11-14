@@ -9,7 +9,7 @@ languages:
 
 repository:
   description: "Drop your podcast .wav into a shiny MP3, AAC or Opus with metadata, cover art, and all 🗜️"
-  homepage: https://linuxmatters.sh
+  homepage: https://linuxmatters.sh/jive/encoder/
   has_wiki: false
   has_discussions: false
   has_projects: false
