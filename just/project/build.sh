@@ -8,6 +8,7 @@ if [ ! -f "third_party/ffmpeg-statigo/lib/$(env CGO_ENABLED=1 go env GOOS)_$(env
     echo "Error: ffmpeg-statigo library not downloaded. Run 'just setup' first."
     exit 1
 fi
-VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+VERSION=$(git describe --tags --match 'v*.*.*' --always --dirty 2>/dev/null || echo "dev")
+VERSION="${VERSION#v}"
 echo "Building jive-encoder version: $VERSION"
-CGO_ENABLED=1 go build -ldflags="-X main.version=$VERSION" -o jive-encoder ./cmd/jive-encoder
+CGO_ENABLED=1 go build -trimpath -ldflags="-X main.version=$VERSION" -o jive-encoder ./cmd/jive-encoder
