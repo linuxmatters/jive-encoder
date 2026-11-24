@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="je-title">
+  <title id="je-title">jive-encoder</title>
+  <circle cx="32" cy="32" r="29" fill="#0B2239" stroke="#1D4B73" stroke-width="1.5"/>
+  <g id="disc-body">
+    <circle cx="32" cy="32" r="21" fill="#103352"/>
+    <path d="M32 32 17 17.5A21 21 0 0 1 32 11Z" fill="#0284C7"/>
+    <path d="M32 32 47 46.5A21 21 0 0 1 32 53Z" fill="#0284C7"/>
+    <path d="M32 32 23 13A21 21 0 0 1 32 11Z" fill="#00D4FF"/>
+    <path d="M32 32 41 51A21 21 0 0 1 32 53Z" fill="#00D4FF"/>
+    <circle cx="32" cy="32" r="21" fill="none" stroke="#00D4FF" stroke-width="2.6"/>
+  </g>
+  <g id="disc-hub">
+    <circle cx="32" cy="32" r="10" fill="#0B2239" stroke="#E0F2FE" stroke-width="2.2"/>
+    <circle cx="32" cy="32" r="5" fill="#00D4FF"/>
+    <circle cx="32" cy="32" r="2.2" fill="#0B2239"/>
+  </g>
+  <g id="compress-chevrons" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 24.5 16 32l-7.5 7.5M55.5 24.5 48 32l7.5 7.5" stroke="#0B2239" stroke-width="6.4"/>
+    <path d="M8.5 24.5 16 32l-7.5 7.5M55.5 24.5 48 32l7.5 7.5" stroke="#E0F2FE" stroke-width="3.2"/>
+  </g>
+</svg>
