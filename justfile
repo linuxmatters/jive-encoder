@@ -20,11 +20,6 @@ install: build
     @echo "Installed jive-encoder to ~/.local/bin/jive-encoder"
     @echo "Make sure ~/.local/bin is in your PATH"
 
-# Record gif
-vhs: build
-    @vhs ./jive-encoder.tape
-    rm LMP67.mp3 2>/dev/null || true
-
 # Show current version (from git tags or "dev" if no tags)
 version:
     @git describe --tags --always --dirty 2>/dev/null || echo "dev"
