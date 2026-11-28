@@ -1,20 +1,20 @@
 <!-- tailor:social-header:start -->
 <p align="center">
-  <a href="https://linuxmatters.sh/jive/encoder/"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/hero-dark.svg"><img src="pages/social/hero-light.svg" alt="Jive Encoder"></picture></a>
+  <a href="https://linuxmatters.sh/jive/encoder/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/hero-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/hero-light.svg" alt="Jive Encoder"></picture></a>
 </p>
 <!-- tailor:social-header:end -->
 
 <!-- tailor:social-links:start -->
 <p align="center">
-  <a href="https://bsky.app/profile/wimpys.world"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/link-bluesky-dark.svg"><img src="pages/social/link-bluesky-light.svg" alt="Bluesky"></picture></a>
-  <a href="https://wimpysworld.social/@martin"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/link-mastodon-dark.svg"><img src="pages/social/link-mastodon-light.svg" alt="Mastodon"></picture></a>
-  <a href="https://linkedin.com/in/martinwimpress"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/link-linkedin-dark.svg"><img src="pages/social/link-linkedin-light.svg" alt="LinkedIn"></picture></a>
+  <a href="https://bsky.app/profile/wimpys.world"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/link-bluesky-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/link-bluesky-light.svg" alt="Bluesky"></picture></a>
+  <a href="https://wimpysworld.social/@martin"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/link-mastodon-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/link-mastodon-light.svg" alt="Mastodon"></picture></a>
+  <a href="https://linkedin.com/in/martinwimpress"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/link-linkedin-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/link-linkedin-light.svg" alt="LinkedIn"></picture></a>
 </p>
 <!-- tailor:social-links:end -->
 
 <!-- tailor:social-community:start -->
 <p align="center">
-  <a href="https://discord.com/invite/vUsydfP"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/community-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/community-light.svg" alt="Discord community"></picture></a>
+  <a href="https://t.me/joinchat/Plfd07auVLayNLBD"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/community-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/community-light.svg" alt="Telegram community"></picture></a>
 </p>
 <!-- tailor:social-community:end -->
 
@@ -48,12 +48,12 @@ First-party signed package repositories are published for Linux and macOS throug
 
 <!-- tailor:social-packages:start -->
 <p align="center">
-  <a href="https://apt.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/pkg-apt-dark.svg"><img src="pages/social/pkg-apt-light.svg" alt="Debian and Ubuntu"></picture></a>
-  <a href="https://rpm.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/pkg-rpm-dark.svg"><img src="pages/social/pkg-rpm-light.svg" alt="Fedora and openSUSE"></picture></a>
-  <a href="https://pkg.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/pkg-pkg-dark.svg"><img src="pages/social/pkg-pkg-light.svg" alt="Arch Linux"></picture></a>
+  <a href="https://apt.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-apt-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-apt-light.svg" alt="Debian and Ubuntu"></picture></a>
+  <a href="https://rpm.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-rpm-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-rpm-light.svg" alt="Fedora and openSUSE"></picture></a>
+  <a href="https://pkg.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-pkg-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-pkg-light.svg" alt="Arch Linux"></picture></a>
   <br>
-  <a href="https://brew.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/pkg-brew-dark.svg"><img src="pages/social/pkg-brew-light.svg" alt="macOS (Homebrew)"></picture></a>
-  <a href="https://nix.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/pkg-nix-dark.svg"><img src="pages/social/pkg-nix-light.svg" alt="Nix and NixOS"></picture></a>
+  <a href="https://brew.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-brew-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-brew-light.svg" alt="macOS (Homebrew)"></picture></a>
+  <a href="https://nix.wimpys.world/#jive-encoder"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-nix-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/pkg-nix-light.svg" alt="Nix and NixOS"></picture></a>
 </p>
 <!-- tailor:social-packages:end -->
 
@@ -72,7 +72,7 @@ bin install github.com/linuxmatters/jive-encoder
 
 <!-- tailor:social-sponsors:start -->
 <p align="center">
-  <a href="https://github.com/sponsors/flexiondotorg"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/sponsors-dark.svg"><img src="pages/social/sponsors-light.svg" alt="Jive Encoder sponsors"></picture></a>
+  <a href="https://github.com/sponsors/flexiondotorg"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/sponsors-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/sponsors-light.svg" alt="Jive Encoder sponsors"></picture></a>
 </p>
 <!-- tailor:social-sponsors:end -->
 
@@ -101,7 +101,7 @@ jive-encoder LMP67.flac episode/67.md --artist "Ubuntu Podcast" --comment "https
 
 <!-- tailor:social-demo:start -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/demo-dark.svg"><img src="pages/social/demo-light.svg" alt="Jive Encoder demo"></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/demo-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/demo-light.svg" alt="Jive Encoder demo"></picture>
 </p>
 <!-- tailor:social-demo:end -->
 
@@ -257,6 +257,6 @@ Read [Support](SUPPORT.md) for help and [Contributing](CONTRIBUTING.md) before s
 
 <!-- tailor:social-footer:start -->
 <p align="center">
-  <a href="https://tailor.wimpys.world"><picture><source media="(prefers-color-scheme: dark)" srcset="pages/social/footer-dark.svg"><img src="pages/social/footer-light.svg" alt="Fitted by Tailor"></picture></a>
+  <a href="https://tailor.wimpys.world"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/footer-dark.svg"><img src="https://raw.githubusercontent.com/linuxmatters/jive-encoder/social-assets/footer-light.svg" alt="Fitted by Tailor"></picture></a>
 </p>
 <!-- tailor:social-footer:end -->
